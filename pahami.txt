@@ -1,9 +1,0 @@
-File	Perubahan
-.env	NEXTAUTH_URL=https://domainanda.com
-MIDTRANS_IS_PRODUCTION=true
-NEXT_PUBLIC_MIDTRANS_SNAP_URL=https://app.midtrans.com/snap/snap.js
-src/lib/auth.ts	Ubah secure: false → secure: true di bagian cookies.sessionToken.options
-src/app/api/dev/simulate-topup/route.ts	Hapus (hanya untuk testing lokal)
-src/store/cart.ts	Hapus (sudah tidak digunakan)
-src/components/AdminAuthCheck.tsx	Hapus (sudah tidak digunakan)
-middleware.ts (root atau src/)	Hapus (proteksi sudah di layout)
