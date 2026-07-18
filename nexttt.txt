@@ -1,0 +1,10 @@
+jika sudah production atau deploy apa saja file yang perlu dirubah karena kan sebelumnya kita pakai localhost
+dan apa saja yang perlu dirubah selain pada .env (sebutkan apa saja yang perlu dirubah dari semua yang saya kirimkan diatas)
+
+
+cmrpn5hj70005xy9uudgryesl
+fetch('/api/dev/simulate-topup', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ topupId: '(ID TOPUP NYA)' })
+}).then(r => r.json()).then(console.log)

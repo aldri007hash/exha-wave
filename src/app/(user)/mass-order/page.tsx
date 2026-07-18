@@ -1,0 +1,143 @@
+"use client"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
+import { redirect } from "next/navigation"
+
+interface PreviewItem {
+  targetLink: string
+  profileName: string
+  quantity: number
+}
+
+export default function MassOrderPage() {
+  const { data: session } = useSession()
+  const router = useRouter()
+  const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<PreviewItem[]>([])
+  const [serviceId, setServiceId] = useState("")
+  const [services, setServices] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  if (!session?.user) redirect("/login")
+
+  // Fetch services
+  const fetchServices = async () => {
+    const res = await fetch("/api/admin/services")
+    const data = await res.json()
+    setServices(data.platforms?.flatMap((p: any) => p.services) || [])
+  }
+
+  useState(() => {
+    fetchServices()
+  }, [])
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0]
+    if (!selectedFile) return
+    setFile(selectedFile)
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const text = event.target?.result as string
+      const lines = text.split("\n").filter(line => line.trim())
+      if (lines.length < 2) {
+        setError("File CSV harus memiliki header dan minimal 1 baris data")
+        return
+      }
+      const headers = lines[0].toLowerCase().split(",").map(h => h.trim())
+      const requiredHeaders = ["targetlink", "profilename", "quantity"]
+      const missingHeaders = requiredHeaders.filter(h => !headers.includes(h))
+      if (missingHeaders.length > 0) {
+        setError(`Kolom wajib tidak ditemukan: ${missingHeaders.join(", ")}`)
+        return
+      }
+
+      const items: PreviewItem[] = []
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(",").map(v => v.trim())
+        if (values.length !== 3) continue
+        const quantity = parseInt(values[2])
+        if (isNaN(quantity) || quantity <= 0) continue
+        items.push({
+          targetLink: values[0],
+          profileName: values[1],
+          quantity,
+        })
+      }
+      setPreview(items)
+      setError("")
+    }
+    reader.readAsText(selectedFile)
+  }
+
+  const handleSubmit = async () => {
+    if (!serviceId || preview.length === 0) return alert("Pilih layanan dan upload file CSV")
+    setLoading(true)
+    const res = await fetch("/api/mass-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ serviceId, items: preview }),
+    })
+    if (res.ok) {
+      router.push("/cart")
+    } else {
+      alert("Gagal membuat mass order")
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <h1 className="font-heading text-3xl font-bold mb-6">Mass Order (Upload CSV)</h1>
+      <div className="bg-card border border-border rounded-xl p-6 mb-6">
+        <p className="text-sm text-gray-500 mb-4">
+          Upload file CSV dengan format: <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">targetLink, profileName, quantity</code>.
+          Baris pertama adalah header.
+        </p>
+        <div className="mb-4">
+          <label className="block text-sm mb-2">Pilih Layanan</label>
+          <select
+            value={serviceId}
+            onChange={e => setServiceId(e.target.value)}
+            className="border rounded px-3 py-2 w-full bg-transparent"
+          >
+            <option value="">Pilih Layanan</option>
+            {services.map((s: any) => (
+              <option key={s.id} value={s.id}>{s.name} (Min: {s.minOrder})</option>
+            ))}
+          </select>
+        </div>
+        <input
+          type="file"
+          accept=".csv"
+          onChange={handleFileChange}
+          className="mb-4"
+        />
+        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+        {preview.length > 0 && (
+          <div className="mb-4">
+            <p className="text-sm font-semibold mb-2">Preview ({preview.length} item)</p>
+            <div className="max-h-60 overflow-y-auto border rounded p-2">
+              {preview.map((item, idx) => (
+                <div key={idx} className="flex justify-between text-sm py-1">
+                  <span>{item.targetLink}</span>
+                  <span>{item.profileName}</span>
+                  <span>{item.quantity}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <button
+          onClick={handleSubmit}
+          disabled={!file || !serviceId || loading}
+          className="bg-primary text-white px-6 py-2 rounded-full disabled:opacity-50"
+        >
+          {loading ? "Memproses..." : "Tambah ke Keranjang"}
+        </button>
+      </div>
+    </div>
+  )
+}

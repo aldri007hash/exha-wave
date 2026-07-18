@@ -1,0 +1,179 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #0066FF;
+  --accent: #00E5FF;
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #f9fafb;
+  --border: #e5e7eb;
+  --text-muted: #6b7280;
+}
+
+.theme-dark {
+  --primary: #0066FF;
+  --accent: #00E5FF;
+  --background: #0a0a0a;
+  --foreground: #f9fafb;
+  --card: #1f2937;
+  --border: #374151;
+  --text-muted: #9ca3af;
+}
+
+.theme-green {
+  --primary: #00FF88;
+  --accent: #00E5FF;
+  --background: #0f1a0f;
+  --foreground: #e0ffe0;
+  --card: #1a2a1a;
+  --border: #2a3a2a;
+  --text-muted: #a0d0a0;
+}
+
+.theme-purple {
+  --primary: #8B5CF6;
+  --accent: #c084fc;
+  --background: #1a0f2e;
+  --foreground: #f0e6ff;
+  --card: #2a1a3e;
+  --border: #3a2a4e;
+  --text-muted: #c0b0e0;
+}
+
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--foreground);
+}
+
+/* Pastikan teks abu-abu tetap terlihat di semua tema */
+.text-gray-500, .text-gray-400, .text-gray-600 {
+  color: var(--text-muted);
+}
+
+.text-gray-800, .text-gray-900, .text-black {
+  color: var(--foreground);
+}
+
+/* Link dan teks penting */
+.font-semibold, .font-bold {
+  color: inherit; /* mengikuti warna parent, biasanya foreground */
+}
+
+/* Kartu dan border */
+.bg-card {
+  background-color: var(--card);
+}
+
+.border-border {
+  border-color: var(--border);
+}
+
+/* Ripple effect */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  width: 100px;
+  height: 100px;
+  margin-top: -50px;
+  margin-left: -50px;
+  top: 50%;
+  left: 50%;
+  animation: ripple 0.6s ease-out;
+  opacity: 0;
+}
+
+.ripple:active::after {
+  opacity: 1;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--card);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 3px;
+}
+
+/* Prose untuk konten */
+.prose {
+  max-width: none;
+  color: var(--foreground);
+}
+
+.prose h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--primary);
+}
+
+.prose p {
+  margin-bottom: 1rem;
+  line-height: 1.7;
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 10px;
+  opacity: 0.5;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  opacity: 1;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) transparent;
+}
+
+/* Animations */
+@keyframes ripple {
+  from {
+    transform: scale(0);
+    opacity: 1;
+  }
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}

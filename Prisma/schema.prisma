@@ -1,0 +1,316 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  name                String
+  username            String               @unique
+  email               String               @unique
+  phone               String?
+  password            String
+  image               String?
+  role                Role                 @default(USER)
+  tier                Tier                 @default(BRONZE)
+  points              Int                  @default(0)
+  totalSpent          Int                  @default(0)
+  status              UserStatus           @default(ACTIVE)
+  suspendUntil        DateTime?
+  banReason           String?
+  lastLoginAt         DateTime?
+  lastProfileEdit     DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  referralCode        String?              @unique
+  lastSpinDate        DateTime?
+  activityLogs        ActivityLog[]
+  chatMessages        ChatMessage[]
+  adminChatRooms      ChatRoom[]           @relation("AdminChat")
+  chatRooms           ChatRoom[]           @relation("UserChatRoom")
+  notifications       Notification[]
+  orders              Order[]
+  resetTokens         PasswordResetToken[]
+  adminPointHistories PointHistory[]       @relation("PointAdmin")
+  pointHistories      PointHistory[]       @relation("PointUser")
+  referralsUsed       Referral?            @relation("ReferredUser")
+  referralsMade       Referral[]           @relation("ReferringUser")
+  reviews             Review[]
+  spinRecords         SpinRecord[]
+  topupTransactions   TopupTransaction[]
+  visitorLogs         VisitorLog[]
+  wallet              Wallet?
+}
+
+model Platform {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  icon      String?
+  createdAt DateTime  @default(now())
+  services  Service[]
+}
+
+model Service {
+  id           String      @id @default(cuid())
+  platformId   String
+  name         String
+  slug         String
+  minOrder     Int         @default(1000)
+  pricePerUnit Int
+  description  String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  orderItems   OrderItem[]
+  platform     Platform    @relation(fields: [platformId], references: [id])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String
+  status          OrderStatus @default(PENDING_PAYMENT)
+  totalPrice      Int
+  paymentMethod   String?
+  paymentProof    String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  dripFeedBatches Json?
+  dripFeedRequest Boolean     @default(false)
+  user            User        @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  review          Review?
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  serviceId   String
+  targetLink  String
+  profileName String?
+  quantity    Int
+  price       Int
+  createdAt   DateTime @default(now())
+  delivered   Int      @default(0)
+  order       Order    @relation(fields: [orderId], references: [id])
+  service     Service  @relation(fields: [serviceId], references: [id])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  orderId    String   @unique
+  userId     String
+  rating     Int
+  comment    String
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  order      Order    @relation(fields: [orderId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model PaymentMethod {
+  id            String   @id @default(cuid())
+  name          String
+  type          String
+  accountNumber String?
+  accountName   String?
+  instructions  String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  qrisImage     String?
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model ChatRoom {
+  id        String        @id @default(cuid())
+  userId    String
+  adminId   String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+  admin     User?         @relation("AdminChat", fields: [adminId], references: [id])
+  user      User          @relation("UserChatRoom", fields: [userId], references: [id])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String?
+  role      String
+  content   String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  audioUrl  String?
+  imageUrl  String?
+  roomId    String
+  room      ChatRoom @relation(fields: [roomId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model VisitorLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  page      String
+  ip        String
+  browser   String
+  device    String
+  createdAt DateTime @default(now())
+  latitude  Float?
+  longitude Float?
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model Faq {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model AboutPage {
+  id      String @id @default(cuid())
+  content String
+}
+
+model AudioTrack {
+  id        String   @id @default(cuid())
+  category  String
+  title     String
+  fileUrl   String
+  duration  Int?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Sound {
+  id        String   @id @default(cuid())
+  category  String
+  label     String
+  fileUrl   String
+  createdAt DateTime @default(now())
+}
+
+model Referral {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  pointsGiven Int      @default(0)
+  refereeId   String   @unique
+  referrerId  String
+  referee     User     @relation("ReferredUser", fields: [refereeId], references: [id])
+  referrer    User     @relation("ReferringUser", fields: [referrerId], references: [id])
+}
+
+model SpinRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  prize     Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Competitor {
+  id              String   @id @default(cuid())
+  platform        String
+  service         String
+  competitorName  String
+  competitorPrice Int
+  ourPrice        Int
+  createdAt       DateTime @default(now())
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model PointHistory {
+  id        String   @id @default(cuid())
+  adminId   String
+  userId    String?
+  name      String
+  poin      Int
+  userCount Int      @default(1)
+  createdAt DateTime @default(now())
+  admin     User     @relation("PointAdmin", fields: [adminId], references: [id])
+  user      User?    @relation("PointUser", fields: [userId], references: [id])
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Int      @default(0)
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model TopupTransaction {
+  id            String   @id @default(cuid())
+  userId        String
+  amount        Int
+  paymentMethod String
+  status        String   @default("PENDING")
+  paymentProof  String?
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum Tier {
+  BRONZE
+  SILVER
+  GOLD
+  EXHAS_FRIEND
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+  SUSPENDED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PROCESSING
+  PROGRESS
+  PARTIAL
+  COMPLETED
+  CANCELLED
+}
