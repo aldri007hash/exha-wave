@@ -1,4 +1,0 @@
-Cloudinary (login google aldrifikri2001)
-Cloud name: isvzam26
-API KEY: 134828547152925
-API SECRET: MsCBcGuyR7tBGOCxJUusIC_gx8U

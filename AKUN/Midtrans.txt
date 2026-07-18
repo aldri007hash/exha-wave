@@ -1,6 +1,0 @@
-Akun Midtrans:
-Email: exhagroup.com
-Password: Khontol123.
-Merchant ID : M613055660
-Client Key : Mid-client-FQodNJLOm8coGBmy
-Server Key : Mid-server-rI9DT7jl39r9fccQ8QKFps3u
