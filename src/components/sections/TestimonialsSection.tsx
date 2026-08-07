@@ -1,81 +1,36 @@
 "use client"
 import useSWR from "swr"
-import Skeleton from "@/components/ui/Skeleton"
-import { Swiper, SwiperSlide } from "swiper/react"
-import { Autoplay, Pagination } from "swiper/modules"
-import "swiper/css"
-import "swiper/css/pagination"
+import { useEffect, useState } from "react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 export default function TestimonialsSection() {
-  const { data, isLoading } = useSWR("/api/testimonials", fetcher)
+  const [currentSlide, setCurrentSlide] = useState(0)
+  const { data, isLoading, mutate } = useSWR("/api/testimonials", fetcher, { revalidateOnFocus: true, dedupingInterval: 2000, refreshInterval: 10000 })
   const reviews = data?.reviews || []
 
+  useEffect(() => {
+    const handler = () => { mutate() }
+    window.addEventListener("testimoni-updated", handler)
+    window.addEventListener("storage", (e) => { if (e.key === "testimoniUpdated") handler() })
+    return () => { window.removeEventListener("testimoni-updated", handler); window.removeEventListener("storage", handler) }
+  }, [mutate])
+
+  const nextSlide = () => { if (reviews.length > 0) setCurrentSlide(prev => (prev + 1) % reviews.length) }
+  const prevSlide = () => { if (reviews.length > 0) setCurrentSlide(prev => (prev - 1 + reviews.length) % reviews.length) }
+
+  if (isLoading) return <section id="testimoni" className="py-16"><div className="max-w-4xl mx-auto px-4"><h2 className="font-heading text-3xl font-bold text-center mb-8">Testimoni Pelanggan</h2><div className="flex justify-center"><div className="h-40 w-full max-w-md animate-pulse bg-card rounded-xl" /></div></div></section>
+  if (reviews.length === 0) return <section id="testimoni" className="py-16"><div className="max-w-4xl mx-auto px-4"><h2 className="font-heading text-3xl font-bold text-center mb-8">Testimoni Pelanggan</h2><p className="text-center text-gray-500">Belum ada testimoni.</p></div></section>
+
   return (
-    <section id="testimoni" className="py-16 bg-card relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 pointer-events-none" />
-      <div className="max-w-6xl mx-auto px-4 relative z-10">
-        <h2 className="font-heading text-3xl font-bold mb-2 text-center" data-aos="fade-up">
-          Testimoni
-        </h2>
-        <p className="text-center text-gray-500 mb-8" data-aos="fade-up" data-aos-delay="100">
-          Cerita sukses dari pelanggan yang telah merasakan dampak Exha Wave.
-        </p>
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="bg-white/20 dark:bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/20 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Skeleton className="w-8 h-8 rounded-full" />
-                  <Skeleton className="h-4 w-24" />
-                </div>
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-              </div>
-            ))}
-          </div>
-        ) : reviews.length === 0 ? (
-          <p className="text-center text-gray-500">Belum ada testimoni.</p>
-        ) : (
-          <Swiper
-            modules={[Autoplay, Pagination]}
-            spaceBetween={24}
-            slidesPerView={1}
-            autoplay={{ delay: 4000, disableOnInteraction: false }}
-            pagination={{ clickable: true }}
-            breakpoints={{
-              768: {
-                slidesPerView: 2,
-                spaceBetween: 24,
-              },
-            }}
-            className="pb-12"
-          >
-            {reviews.map((review: any) => (
-              <SwiperSlide key={review.id}>
-                <div className="bg-white/20 dark:bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:border-primary/30 transition-all duration-300 h-full">
-                  <div className="flex items-center gap-2 mb-2">
-                    {review.user.image ? (
-                      <img src={review.user.image} className="w-8 h-8 rounded-full object-cover" alt="" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
-                        {review.user.name[0]}
-                      </div>
-                    )}
-                    <span className="font-semibold text-sm">{review.user.name}</span>
-                  </div>
-                  <div className="flex mb-2">
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <span key={i} className={i < review.rating ? "text-yellow-500" : "text-gray-400"}>★</span>
-                    ))}
-                  </div>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">{review.comment}</p>
-                </div>
-              </SwiperSlide>
-            ))}
-          </Swiper>
-        )}
+    <section id="testimoni" className="py-16">
+      <div className="max-w-4xl mx-auto px-4">
+        <h2 className="font-heading text-3xl font-bold text-center mb-8">Testimoni Pelanggan</h2>
+        <div className="relative">
+          <div className="overflow-hidden"><div className="flex transition-transform duration-500" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>{reviews.map((review: any) => (<div key={review.id} className="w-full flex-shrink-0 px-4"><div className="bg-card border border-border rounded-xl p-6 max-w-md mx-auto"><div className="flex items-center gap-3 mb-3">{review.user?.image ? <img src={review.user.image} className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary">{review.user?.name?.[0] || "?"}</div>}<div><p className="font-semibold">{review.user?.name || "Anonim"}</p></div></div><div className="flex mb-2">{[1,2,3,4,5].map(i => <span key={i} className={i <= review.rating ? "text-yellow-500" : "text-gray-300"}>★</span>)}</div><p className="text-sm text-gray-600 dark:text-gray-300">{review.comment}</p>{review.serviceName && <p className="text-xs text-gray-400 mt-1">Layanan: {review.serviceName}</p>}</div></div>))}</div></div>
+          {reviews.length > 1 && (<div className="flex justify-center items-center gap-4 mt-4"><button onClick={prevSlide} className="p-2 border rounded-full hover:bg-primary/10"><ChevronLeft size={18} /></button><span className="text-sm text-gray-500">{currentSlide + 1} / {reviews.length}</span><button onClick={nextSlide} className="p-2 border rounded-full hover:bg-primary/10"><ChevronRight size={18} /></button></div>)}
+        </div>
       </div>
     </section>
   )

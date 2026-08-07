@@ -17,11 +17,11 @@
 .theme-dark {
   --primary: #0066FF;
   --accent: #00E5FF;
-  --background: #0a0a0a;
-  --foreground: #f9fafb;
-  --card: #1f2937;
-  --border: #374151;
-  --text-muted: #9ca3af;
+  --background: #0f1117;
+  --foreground: #f1f5f9;
+  --card: #1e293b;
+  --border: #334155;
+  --text-muted: #94a3b8;
 }
 
 .theme-green {
@@ -44,136 +44,269 @@
   --text-muted: #c0b0e0;
 }
 
-* {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+*, *::before, *::after { box-sizing: border-box; transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
+body { font-family: 'Inter', sans-serif; background-color: var(--background); color: var(--foreground); overflow-x: hidden; }
+img, video, iframe { max-width: 100%; height: auto; }
+h1, h2, h3, h4, h5, h6 { font-family: 'Space Grotesk', sans-serif; color: var(--foreground); }
+
+/* Override teks di tema gelap */
+.theme-dark .text-gray-500, .theme-dark .text-gray-400, .theme-dark .text-gray-600, .theme-dark .text-gray-300, .theme-dark .text-gray-200 { color: var(--text-muted) !important; }
+.theme-dark .text-gray-800, .theme-dark .text-gray-900, .theme-dark .text-black, .theme-dark .font-semibold, .theme-dark .font-bold { color: var(--foreground) !important; }
+.theme-dark .text-gray-700 { color: var(--foreground) !important; }
+
+.bg-card { background-color: var(--card) !important; }
+.border-border { border-color: var(--border) !important; }
+
+.theme-dark .bg-white, .theme-dark [class*="bg-white"] { background-color: var(--card) !important; }
+.theme-dark .border-gray-200, .theme-dark .border-gray-300 { border-color: var(--border) !important; }
+.theme-dark .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0,0,0,0.3) !important; }
+.theme-dark .shadow { box-shadow: 0 1px 3px 0 rgba(0,0,0,0.4) !important; }
+
+/* Override tabel di admin panel */
+.theme-dark table { color: var(--foreground) !important; }
+.theme-dark thead { background-color: var(--card) !important; }
+.theme-dark th { color: var(--text-muted) !important; background-color: var(--card) !important; }
+.theme-dark td { color: var(--foreground) !important; border-color: var(--border) !important; }
+.theme-dark tr { border-color: var(--border) !important; }
+.theme-dark .border-b { border-color: var(--border) !important; }
+
+/* Override input di admin panel */
+input, select, textarea { color: var(--foreground); background-color: var(--background); border-color: var(--border); max-width: 100%; }
+input::placeholder, textarea::placeholder { color: var(--text-muted); }
+.theme-dark input, .theme-dark select, .theme-dark textarea { color: var(--foreground) !important; background-color: var(--background) !important; border-color: var(--border) !important; }
+.theme-dark ::placeholder { color: var(--text-muted) !important; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--card); }
+::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 3px; }
+
+.ripple { position: relative; overflow: hidden; }
+.ripple::after { content: ""; position: absolute; border-radius: 50%; background: rgba(255,255,255,0.5); width: 100px; height: 100px; margin-top: -50px; margin-left: -50px; top: 50%; left: 50%; animation: ripple 0.6s ease-out; opacity: 0; }
+.ripple:active::after { opacity: 1; }
+@keyframes ripple { from { transform: scale(0); opacity: 1; } to { transform: scale(4); opacity: 0; } }
+
+.prose { max-width: none; color: var(--foreground); }
+.prose h2 { font-family: 'Space Grotesk', sans-serif; color: var(--primary); }
+.prose p { margin-bottom: 1rem; line-height: 1.7; }
+
+.responsive-table { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.responsive-table table { min-width: 600px; width: 100%; border-collapse: collapse; }
+.responsive-table th, .responsive-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; font-size: 0.875rem; }
+.responsive-table th { font-weight: 600; background-color: var(--card); }
+
+@media (max-width: 768px) {
+  body { padding-bottom: 80px; }
+  h1 { font-size: 1.75rem !important; }
+  h2 { font-size: 1.5rem !important; }
+  .grid-cols-2, .grid-cols-3, .grid-cols-4 { grid-template-columns: 1fr !important; }
+  table, thead, tbody, th, td, tr { font-size: 0.8rem; }
+  .responsive-table table { min-width: 500px; }
 }
 
-body {
-  font-family: 'Inter', sans-serif;
-  background-color: var(--background);
-  color: var(--foreground);
+@media (min-width: 1024px) {
+  .max-w-7xl { max-width: 1200px !important; margin-left: auto; margin-right: auto; }
+  body { font-size: 16px; }
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Space Grotesk', sans-serif;
-  color: var(--foreground);
-}
+.admin-content h1, .admin-content h2, .admin-content h3 { word-break: break-word; }
+.admin-content .card { background-color: var(--card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem; }
+.admin-content .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 9999px; font-weight: 500; font-size: 0.875rem; transition: all 0.2s; }
+.admin-content .btn-primary { background-color: var(--primary); color: white; }
+.admin-content .btn-primary:hover { opacity: 0.9; }
+.admin-content .btn-danger { background-color: #ef4444; color: white; }
+.admin-content .btn-danger:hover { background-color: #dc2626; }
+.admin-content .btn-outline { border: 1px solid var(--border); background: transparent; color: var(--foreground); }
+.admin-content .btn-outline:hover { background-color: var(--card); }
+.admin-content input, .admin-content select, .admin-content textarea { background-color: var(--background); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; width: 100%; box-sizing: border-box; }
 
-/* Pastikan teks abu-abu tetap terlihat di semua tema */
-.text-gray-500, .text-gray-400, .text-gray-600 {
-  color: var(--text-muted);
-}
+/* Override spesifik untuk tema gelap admin */
+.theme-dark .admin-content { color: var(--foreground) !important; }
+.theme-dark .admin-content .bg-card { background-color: var(--card) !important; }
+.theme-dark .admin-content .text-gray-500 { color: var(--text-muted) !important; }
+.theme-dark .admin-content .text-gray-700 { color: var(--foreground) !important; }
+.theme-dark .admin-content .border { border-color: var(--border) !important; }
+.theme-dark .admin-content .border-border { border-color: var(--border) !important; }
+.theme-dark .admin-content .hover\:bg-gray-50:hover { background-color: var(--card) !important; }
+.theme-dark .admin-content .bg-gray-50 { background-color: var(--card) !important; }
+.theme-dark .admin-content .bg-yellow-50 { background-color: rgba(234,179,8,0.15) !important; }
+.theme-dark .admin-content .bg-blue-50 { background-color: rgba(59,130,246,0.15) !important; }
+.theme-dark .admin-content .bg-green-50 { background-color: rgba(34,197,94,0.15) !important; }
+.theme-dark .admin-content .bg-red-50 { background-color: rgba(239,68,68,0.15) !important; }
 
-.text-gray-800, .text-gray-900, .text-black {
-  color: var(--foreground);
-}
-
-/* Link dan teks penting */
-.font-semibold, .font-bold {
-  color: inherit; /* mengikuti warna parent, biasanya foreground */
-}
-
-/* Kartu dan border */
-.bg-card {
-  background-color: var(--card);
-}
-
-.border-border {
-  border-color: var(--border);
-}
-
-/* Ripple effect */
-.ripple {
-  position: relative;
-  overflow: hidden;
-}
-
-.ripple::after {
-  content: "";
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
-  width: 100px;
-  height: 100px;
-  margin-top: -50px;
-  margin-left: -50px;
-  top: 50%;
-  left: 50%;
-  animation: ripple 0.6s ease-out;
-  opacity: 0;
-}
-
-.ripple:active::after {
-  opacity: 1;
-}
-
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--card);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--primary);
-  border-radius: 3px;
-}
-
-/* Prose untuk konten */
-.prose {
-  max-width: none;
-  color: var(--foreground);
-}
-
-.prose h2 {
-  font-family: 'Space Grotesk', sans-serif;
-  color: var(--primary);
-}
-
-.prose p {
-  margin-bottom: 1rem;
-  line-height: 1.7;
-}
-
-/* Custom scrollbar */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--primary);
-  border-radius: 10px;
-  opacity: 0.5;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  opacity: 1;
-}
-
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: var(--primary) transparent;
-}
-
-/* Animations */
-@keyframes ripple {
-  from {
-    transform: scale(0);
-    opacity: 1;
-  }
-  to {
-    transform: scale(4);
-    opacity: 0;
-  }
-}
+/* Admin header override */
+.theme-dark .admin-header-bg { background-color: var(--card) !important; border-color: var(--border) !important; }
 
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+.shimmer { position: absolute; top: 0; left: 0; width: 50%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); animation: shimmer 2s infinite; }
+
+@keyframes bounce-slow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.animate-bounce-slow { animation: bounce-slow 2s infinite; }
+@keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.animate-slide-up { animation: slideUp 0.5s ease-out; }
+@keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.animate-spin-slow { animation: spin-slow 3s linear infinite; }
+
+/* ========== THEME GREEN OVERRIDE ========== */
+.theme-green .text-gray-500, .theme-green .text-gray-400, .theme-green .text-gray-600 { color: var(--text-muted) !important; }
+.theme-green .text-gray-800, .theme-green .text-gray-900, .theme-green .text-black, .theme-green .font-semibold, .theme-green .font-bold { color: var(--foreground) !important; }
+.theme-green .text-gray-700 { color: var(--foreground) !important; }
+.theme-green .bg-white { background-color: var(--card) !important; }
+.theme-green .border-gray-200, .theme-green .border-gray-300 { border-color: var(--border) !important; }
+.theme-green table { color: var(--foreground) !important; }
+.theme-green th { color: var(--text-muted) !important; background-color: var(--card) !important; }
+.theme-green td { color: var(--foreground) !important; border-color: var(--border) !important; }
+.theme-green input, .theme-green select, .theme-green textarea { color: var(--foreground) !important; background-color: var(--background) !important; border-color: var(--border) !important; }
+
+/* ========== THEME PURPLE OVERRIDE ========== */
+.theme-purple .text-gray-500, .theme-purple .text-gray-400, .theme-purple .text-gray-600 { color: var(--text-muted) !important; }
+.theme-purple .text-gray-800, .theme-purple .text-gray-900, .theme-purple .text-black, .theme-purple .font-semibold, .theme-purple .font-bold { color: var(--foreground) !important; }
+.theme-purple .text-gray-700 { color: var(--foreground) !important; }
+.theme-purple .bg-white { background-color: var(--card) !important; }
+.theme-purple .border-gray-200, .theme-purple .border-gray-300 { border-color: var(--border) !important; }
+.theme-purple table { color: var(--foreground) !important; }
+.theme-purple th { color: var(--text-muted) !important; background-color: var(--card) !important; }
+.theme-purple td { color: var(--foreground) !important; border-color: var(--border) !important; }
+.theme-purple input, .theme-purple select, .theme-purple textarea { color: var(--foreground) !important; background-color: var(--background) !important; border-color: var(--border) !important; }
+
+/* ========== OVERRIDE TEKS HIJAU DI TEMA GELAP ========== */
+.theme-dark .text-green-900 { color: #bbf7d0 !important; }
+.theme-dark .text-green-800 { color: #bbf7d0 !important; }
+.theme-dark .text-green-700 { color: #86efac !important; }
+.theme-dark .text-green-600 { color: #86efac !important; }
+.theme-dark .text-green-500 { color: #4ade80 !important; }
+
+/* ========== OVERRIDE TEKS MERAH DI TEMA GELAP ========== */
+.theme-dark .text-red-900 { color: #fecaca !important; }
+.theme-dark .text-red-800 { color: #fecaca !important; }
+.theme-dark .text-red-700 { color: #fca5a5 !important; }
+.theme-dark .text-red-600 { color: #fca5a5 !important; }
+
+/* ========== OVERRIDE TEKS BIRU DI TEMA GELAP ========== */
+.theme-dark .text-blue-900 { color: #bfdbfe !important; }
+.theme-dark .text-blue-800 { color: #bfdbfe !important; }
+.theme-dark .text-blue-700 { color: #93c5fd !important; }
+
+/* ========== OVERRIDE TEKS KUNING DI TEMA GELAP ========== */
+.theme-dark .text-yellow-900 { color: #fef08a !important; }
+.theme-dark .text-yellow-800 { color: #fef08a !important; }
+.theme-dark .text-yellow-700 { color: #fde047 !important; }
+
+/* ========== OVERRIDE TEKS UNGU DI TEMA GELAP ========== */
+.theme-dark .text-purple-900 { color: #e9d5ff !important; }
+.theme-dark .text-purple-800 { color: #e9d5ff !important; }
+.theme-dark .text-purple-700 { color: #d8b4fe !important; }
+
+/* ========== OVERRIDE LATAR BELAKANG TERANG DI TEMA GELAP ========== */
+.theme-dark .bg-green-50 { background-color: rgba(34,197,94,0.15) !important; }
+.theme-dark .bg-green-100 { background-color: rgba(34,197,94,0.2) !important; }
+.theme-dark .bg-red-50 { background-color: rgba(239,68,68,0.15) !important; }
+.theme-dark .bg-red-100 { background-color: rgba(239,68,68,0.2) !important; }
+.theme-dark .bg-yellow-50 { background-color: rgba(234,179,8,0.15) !important; }
+.theme-dark .bg-yellow-100 { background-color: rgba(234,179,8,0.2) !important; }
+.theme-dark .bg-blue-50 { background-color: rgba(59,130,246,0.15) !important; }
+.theme-dark .bg-blue-100 { background-color: rgba(59,130,246,0.2) !important; }
+.theme-dark .bg-purple-50 { background-color: rgba(168,85,247,0.15) !important; }
+.theme-dark .bg-purple-100 { background-color: rgba(168,85,247,0.2) !important; }
+
+/* ========== OVERRIDE TEKS PUTIH / ABU-ABU MUDA DI TEMA GELAP ========== */
+.theme-dark .text-white { color: var(--foreground) !important; }
+
+/* ========== OVERRIDE BADGE STATUS DI TOPUP ========== */
+.theme-dark .text-green-600 { color: #4ade80 !important; }
+.theme-dark .text-yellow-600 { color: #facc15 !important; }
+.theme-dark .text-red-600 { color: #f87171 !important; }
+
+/* ========== OVERRIDE FONT MONO (KODE REFERRAL) DI TEMA GELAP ========== */
+.theme-dark .font-mono { color: var(--foreground) !important; background-color: rgba(255,255,255,0.05) !important; }
+
+/* ========== RESPONSIVE TABLE (MOBILE) ========== */
+@media (max-width: 640px) {
+  .responsive-table table { min-width: 100%; }
+  .responsive-table thead { display: none; }
+  .responsive-table tbody tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    background-color: var(--card);
+  }
+  .responsive-table td {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+    text-align: right;
+    white-space: normal;
+  }
+  .responsive-table td:last-child { border-bottom: none; }
+  .responsive-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    text-align: left;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-right: 1rem;
+  }
+
+  /* Tombol aksi di mobile jadi lebih besar */
+  .admin-content .btn, .admin-content button {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Cegah teks meledak */
+  .break-all-mobile { word-break: break-all; }
+}
+
+/* ========== TALENT DASHBOARD MOBILE ========== */
+@media (max-width: 640px) {
+  .talent-card {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  .talent-card .actions {
+    margin-top: 0.5rem;
+    align-self: flex-end;
+  }
+}
+
+/* ========== OVERRIDE TAMBAHAN TEMA GELAP ========== */
+.theme-dark .text-green-600 { color: #4ade80 !important; }
+.theme-dark .bg-purple-100 { background-color: rgba(168,85,247,0.2) !important; }
+.theme-dark .text-purple-700 { color: #d8b4fe !important; }
+.theme-dark .bg-blue-100 { background-color: rgba(59,130,246,0.2) !important; }
+.theme-dark .text-blue-700 { color: #93c5fd !important; }
+.theme-dark .bg-orange-100 { background-color: rgba(251,146,60,0.2) !important; }
+.theme-dark .text-orange-700 { color: #fdba74 !important; }
+.theme-dark .bg-red-100 { background-color: rgba(239,68,68,0.2) !important; }
+.theme-dark .text-red-700 { color: #fca5a5 !important; }
+
+/* ========== TALENT PANEL DARK MODE OVERRIDE ========== */
+.talent-panel-dark .text-gray-500, .talent-panel-dark .text-gray-400 { color: #D4B896 !important; }
+.talent-panel-dark .text-gray-700, .talent-panel-dark .text-gray-800 { color: #F5E6D3 !important; }
+.talent-panel-dark .bg-white { background-color: #2D1A1A !important; }
+
+/* ========== MOBILE OPTIMIZATION TALENT PANEL ========== */
+@media (max-width: 640px) {
+  .talent-panel-card {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  .talent-panel-card .actions {
+    margin-top: 0.75rem;
+    align-self: flex-end;
+  }
+  .talent-panel-table {
+    font-size: 0.8rem;
+  }
+  .talent-panel-table th, .talent-panel-table td {
+    padding: 0.5rem 0.25rem;
+  }
 }

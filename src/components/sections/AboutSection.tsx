@@ -18,14 +18,19 @@ export default function AboutSection() {
           Lebih dari sekadar panel SMM. Kami adalah mitra pertumbuhan digital Anda.
         </p>
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-3" data-aos="fade-up" data-aos-delay="200">
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
           </div>
         ) : (
-          <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: rawContent }} />
+          <div
+            className="prose dark:prose-invert max-w-none"
+            data-aos="fade-up"
+            data-aos-delay="200"
+            dangerouslySetInnerHTML={{ __html: rawContent }}
+          />
         )}
       </div>
     </section>

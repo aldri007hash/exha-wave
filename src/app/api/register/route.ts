@@ -1,88 +1,57 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
-import crypto from "crypto"
-
-function generateReferralCode(): string {
-  const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-  let code = "EXHA"
-  for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return code
-}
+import { rateLimit } from "@/lib/rate-limit"
 
 export async function POST(req: Request) {
-  const { name, username, email, phone, password, captchaToken, referralCode } = await req.json()
-
-  // Verifikasi captcha ke Google
-  const verifyRes = await fetch("https://www.google.com/recaptcha/api/siteverify", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${captchaToken}`,
-  })
-  const verifyData = await verifyRes.json()
-
-  if (!verifyData.success || verifyData.score < 0.5) {
-    return NextResponse.json({ error: "Captcha tidak valid" }, { status: 400 })
+  const ip = req.headers.get("x-forwarded-for") || "unknown"
+  const result = await rateLimit(ip, "login")
+  if (!result.success) {
+    return NextResponse.json({ error: "Terlalu banyak permintaan. Silakan coba lagi nanti." }, { status: 429 })
   }
 
-  // Cek duplikat
-  const existingEmail = await prisma.user.findUnique({ where: { email } })
-  if (existingEmail) return NextResponse.json({ error: "Email sudah terdaftar" }, { status: 400 })
+  try {
+    const { name, username, email, phone, password, captchaToken, referralCode } = await req.json()
+    if (!name || !username || !email || !password) return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 })
+    if (password.length < 6) return NextResponse.json({ error: "Password minimal 6 karakter" }, { status: 400 })
 
-  const existingUsername = await prisma.user.findUnique({ where: { username } })
-  if (existingUsername) return NextResponse.json({ error: "Username sudah dipakai" }, { status: 400 })
+    const existingUser = await prisma.user.findFirst({ where: { OR: [{ email }, { username }] } })
+    if (existingUser) return NextResponse.json({ error: "Email atau username sudah digunakan" }, { status: 400 })
 
-  const hashedPassword = await bcrypt.hash(password, 12)
-
-  // Generate kode referral unik
-  let newReferralCode = generateReferralCode()
-  // Pastikan unik
-  let existingCode = await prisma.user.findFirst({ where: { referralCode: newReferralCode } })
-  while (existingCode) {
-    newReferralCode = generateReferralCode()
-    existingCode = await prisma.user.findFirst({ where: { referralCode: newReferralCode } })
-  }
-
-  // Buat user baru
-  const user = await prisma.user.create({
-    data: {
-      name,
-      username,
-      email,
-      phone,
-      password: hashedPassword,
-      referralCode: newReferralCode,
-    },
-  })
-
-  // Proses referral jika ada kode referral
-  if (referralCode) {
-    const referrer = await prisma.user.findFirst({ where: { referralCode } })
-    if (referrer && referrer.id !== user.id) {
-      // Buat record referral
-      await prisma.referral.create({
-        data: {
-          referrerId: referrer.id,
-          refereeId: user.id,
-          pointsGiven: 50, // 50 poin untuk yang mengajak
-        },
-      })
-
-      // Update poin referrer (+50)
-      await prisma.user.update({
-        where: { id: referrer.id },
-        data: { points: { increment: 50 } },
-      })
-
-      // Update poin referee (+30)
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { points: { increment: 30 } },
-      })
+    if (process.env.RECAPTCHA_SECRET_KEY && captchaToken) {
+      try {
+        const verifyRes = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+          method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${captchaToken}`,
+        })
+        const captchaData = await verifyRes.json()
+        if (!captchaData.success) return NextResponse.json({ error: "Captcha tidak valid" }, { status: 400 })
+      } catch (err) { console.error("Captcha verification error:", err) }
     }
-  }
 
-  return NextResponse.json({ success: true })
+    const hashedPassword = await bcrypt.hash(password, 10)
+    const newReferralCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+
+    const user = await prisma.user.create({
+      data: {
+        name, username, email, phone: phone || null, password: hashedPassword,
+        role: "USER", status: "ACTIVE", referralCode: newReferralCode,
+        points: 10,
+      },
+    })
+
+    if (referralCode) {
+      const referrer = await prisma.user.findUnique({ where: { referralCode } })
+      if (referrer) {
+        await prisma.referral.create({ data: { referrerId: referrer.id, refereeId: user.id, pointsGiven: 50 } })
+        await prisma.user.update({ where: { id: referrer.id }, data: { points: { increment: 50 } } })
+        await prisma.user.update({ where: { id: user.id }, data: { points: { increment: 20 } } })
+      }
+    }
+
+    return NextResponse.json({ success: true, message: "Registrasi berhasil" }, { status: 201 })
+  } catch (error: any) {
+    console.error("Register error:", error)
+    return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 })
+  }
 }

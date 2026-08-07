@@ -1,5 +1,7 @@
 import { transporter } from "./nodemailer"
 
+const sentEmails = new Set<string>()
+
 export async function sendOrderStatusEmail(
   userEmail: string,
   userName: string,
@@ -8,6 +10,16 @@ export async function sendOrderStatusEmail(
   totalPrice: number,
   items: { name: string; quantity: number; price: number }[]
 ) {
+  // Cegah pengiriman ganda untuk kombinasi order+status yang sama dalam 5 menit
+  const key = `${orderId}-${status}`
+  if (sentEmails.has(key)) {
+    console.log(`Email sudah dikirim untuk ${key}, skip.`)
+    return
+  }
+  sentEmails.add(key)
+  // Hapus key setelah 5 menit untuk mencegah memori penuh
+  setTimeout(() => sentEmails.delete(key), 300000)
+
   const statusMessages: Record<string, string> = {
     PROCESSING: "sedang diproses",
     PROGRESS: "dalam pengerjaan",
@@ -59,6 +71,14 @@ export async function sendNewOrderEmailToAdmin(
   orderId: string,
   totalPrice: number
 ) {
+  const key = `neworder-${orderId}`
+  if (sentEmails.has(key)) {
+    console.log(`Email admin untuk pesanan baru ${orderId} sudah dikirim, skip.`)
+    return
+  }
+  sentEmails.add(key)
+  setTimeout(() => sentEmails.delete(key), 300000)
+
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
       <div style="background-color: #0066FF; padding: 20px; text-align: center;">

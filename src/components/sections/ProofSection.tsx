@@ -31,7 +31,6 @@ export default function ProofSection() {
   const { data, isLoading } = useSWR("/api/proof", fetcher)
   const [startAnimation, setStartAnimation] = useState(false)
 
-  const totalUsers = data?.totalUsers || 0
   const completedOrders = data?.completedOrders || 0
   const activePlatforms = data?.activePlatforms || 0
   const rating = data?.rating || "0.0"
@@ -42,13 +41,7 @@ export default function ProofSection() {
 
   return (
     <section className="py-16 bg-background">
-      <div className="max-w-6xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-        <div>
-          <p className="text-4xl font-bold text-primary">
-            {startAnimation ? <AnimatedCounter target={totalUsers} suffix="+" /> : "0+"}
-          </p>
-          <p className="text-sm text-gray-500 mt-1">Klien Puas</p>
-        </div>
+      <div className="max-w-4xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
         <div>
           <p className="text-4xl font-bold text-primary">
             {startAnimation ? <AnimatedCounter target={completedOrders} suffix="+" /> : "0+"}

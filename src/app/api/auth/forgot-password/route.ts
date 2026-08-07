@@ -1,52 +1,60 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { sendEmail } from "@/lib/nodemailer"
+import { transporter } from "@/lib/nodemailer"
 import crypto from "crypto"
+import { rateLimit } from "@/lib/rate-limit"
 
 export async function POST(req: Request) {
-  const { email } = await req.json()
+  const ip = req.headers.get("x-forwarded-for") || "unknown"
+  const result = await rateLimit(ip, "forgot")
+  if (!result.success) {
+    return NextResponse.json({ error: "Terlalu banyak permintaan. Silakan coba lagi nanti." }, { status: 429 })
+  }
 
   try {
+    const { email } = await req.json()
+    if (!email) return NextResponse.json({ error: "Email wajib diisi" }, { status: 400 })
+
     const user = await prisma.user.findUnique({ where: { email } })
     if (!user) {
-      return NextResponse.json({ error: "Email tidak ditemukan" }, { status: 404 })
+      return NextResponse.json({ message: "Jika email terdaftar, link reset password telah dikirim." })
     }
 
-    // Buat token
     const token = crypto.randomBytes(32).toString("hex")
-    const expiresAt = new Date(Date.now() + 3600000) // 1 jam
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 jam
 
-    // Hapus token lama user ini
     await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } })
-
-    // Simpan token baru
     await prisma.passwordResetToken.create({
-      data: {
-        token,
-        userId: user.id,
-        expiresAt,
-      },
+      data: { userId: user.id, token, expiresAt },
     })
 
-    // Kirim email
     const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`
-    await sendEmail({
+
+    await transporter.sendMail({
+      from: `"Exha Wave" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: "Reset Password - Exha Wave",
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Reset Password Exha Wave</h2>
-          <p>Klik tombol di bawah untuk mereset password Anda:</p>
-          <a href="${resetUrl}" style="display: inline-block; background: #0066FF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Reset Password</a>
-          <p style="margin-top: 20px; color: #666;">Link ini berlaku selama 1 jam.</p>
-          <p>Jika Anda tidak meminta reset password, abaikan email ini.</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+          <div style="background-color: #0066FF; padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0;">Reset Password</h1>
+          </div>
+          <div style="padding: 20px;">
+            <p>Halo, <strong>${user.name}</strong>!</p>
+            <p>Kami menerima permintaan untuk mereset password akun Anda.</p>
+            <p>Klik tombol di bawah untuk mengatur ulang password Anda (link berlaku 1 jam):</p>
+            <a href="${resetUrl}" style="display: inline-block; background-color: #0066FF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 12px 0;">Reset Password</a>
+            <p>Atau salin dan buka link ini di browser:</p>
+            <p style="color: #0066FF;">${resetUrl}</p>
+            <p>Jika Anda tidak merasa meminta reset password, abaikan email ini.</p>
+          </div>
         </div>
       `,
     })
 
-    return NextResponse.json({ message: "Link reset password telah dikirim ke email Anda" })
+    return NextResponse.json({ message: "Jika email terdaftar, link reset password telah dikirim." })
   } catch (error) {
-    console.error("Forgot password error:", error)
+    console.error("Error forgot password:", error)
     return NextResponse.json({ error: "Gagal mengirim email reset password" }, { status: 500 })
   }
 }

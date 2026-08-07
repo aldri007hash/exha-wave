@@ -1,0 +1,37 @@
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  clients.claim();
+});
+
+// Push Notification
+self.addEventListener('push', (event) => {
+  const data = event.data?.json() || {};
+  const options = {
+    body: data.body || 'Ada update baru',
+    icon: '/logo.png',
+    badge: '/logo.png',
+    data: { url: data.url || '/' },
+  };
+  event.waitUntil(self.registration.showNotification(data.title || 'Exha Wave', options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/';
+  event.waitUntil(clients.openWindow(url));
+});
+
+// Fetch handler – hanya untuk resource dari domain sendiri
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  // Hanya tangani request dari origin yang sama (exhawave.com)
+  if (url.origin === location.origin) {
+    event.respondWith(
+      fetch(event.request).catch(() => new Response('', { status: 200 }))
+    );
+  }
+  // Untuk domain lain (Google, Midtrans, dll.), biarkan browser yang menangani
+});

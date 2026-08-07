@@ -11,13 +11,12 @@ export default function ReviewPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!comment.trim()) return alert("Ulasan tidak boleh kosong")
     setLoading(true)
     try {
       const res = await fetch(`/api/orders/${id}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rating, comment }),
+        body: JSON.stringify({ rating, comment: comment.trim() || null }),
       })
       if (res.ok) {
         router.push("/orders")
@@ -40,9 +39,9 @@ export default function ReviewPage() {
             <button type="button" key={i} onClick={() => setRating(i)} className={i <= rating ? "text-yellow-500 text-2xl" : "text-gray-300 text-2xl"}>★</button>
           ))}
         </div>
-        <textarea required placeholder="Tulis ulasan Anda..." rows={4} value={comment} onChange={e => setComment(e.target.value)} className="border rounded px-3 py-2 bg-transparent" />
+        <textarea placeholder="Tulis ulasan (opsional)..." rows={4} value={comment} onChange={e => setComment(e.target.value)} className="border rounded px-3 py-2 bg-transparent" />
         <p className="text-xs text-gray-500">{comment.length} karakter</p>
-        <button disabled={loading || !comment.trim()} type="submit" className="bg-primary text-white py-2 rounded-full disabled:opacity-50">
+        <button disabled={loading} type="submit" className="bg-primary text-white py-2 rounded-full disabled:opacity-50">
           {loading ? "Mengirim..." : "Kirim Ulasan"}
         </button>
       </form>

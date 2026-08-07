@@ -1,4 +1,4 @@
-\import nodemailer from "nodemailer"
+import nodemailer from "nodemailer"
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -6,38 +6,21 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  tls: {
+    rejectUnauthorized: false,
+  },
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
 })
 
-export async function sendContactEmail(data: {
-  name: string
-  email: string
-  phone: string
-  message: string
-}) {
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: "exhagroup@gmail.com",
-    subject: `Pesan dari ${data.name} via Exha Wave`,
-    html: `
-      <h3>Pesan Baru dari Form Kontak</h3>
-      <p><strong>Nama:</strong> ${data.name}</p>
-      <p><strong>Email:</strong> ${data.email}</p>
-      <p><strong>Telepon:</strong> ${data.phone}</p>
-      <p><strong>Pesan:</strong></p>
-      <p>${data.message}</p>
-    `,
+// Verifikasi koneksi saat startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("Nodemailer connection error:", error.message)
+  } else {
+    console.log("Nodemailer siap mengirim email")
   }
+})
 
-  await transporter.sendMail(mailOptions)
-}
-
-export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to,
-    subject,
-    html,
-  }
-
-  await transporter.sendMail(mailOptions)
-}
+export { transporter }

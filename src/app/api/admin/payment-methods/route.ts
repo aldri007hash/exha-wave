@@ -43,3 +43,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to create" }, { status: 500 });
   }
 }
+
+export async function PUT(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || ((session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN") && session.user.role !== "SUPER_ADMIN")) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  const body = await req.json();
+  try {
+    const { id, ...data } = body;
+    if (!id) {
+      return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
+    }
+    await prisma.paymentMethod.update({
+      where: { id },
+      data: {
+        name: data.name,
+        type: data.type,
+        accountNumber: data.accountNumber,
+        accountName: data.accountName,
+        instructions: data.instructions,
+        qrisImage: data.qrisImage,
+        isActive: data.isActive,
+      },
+    });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: "Gagal mengupdate metode pembayaran" }, { status: 500 });
+  }
+}

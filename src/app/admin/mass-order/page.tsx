@@ -1,5 +1,8 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
+import { redirect } from "next/navigation"
 
 interface PreviewItem {
   targetLink: string
@@ -7,24 +10,27 @@ interface PreviewItem {
   quantity: number
 }
 
-export default function AdminMassOrderPage() {
+export default function MassOrderPage() {
+  const { data: session } = useSession()
+  const router = useRouter()
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<PreviewItem[]>([])
   const [serviceId, setServiceId] = useState("")
   const [services, setServices] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [userId, setUserId] = useState("") // admin memilih user
+
+  if (!session?.user) redirect("/login")
+
+  useEffect(() => {
+    fetchServices()
+  }, [])
 
   const fetchServices = async () => {
     const res = await fetch("/api/admin/services")
     const data = await res.json()
     setServices(data.platforms?.flatMap((p: any) => p.services) || [])
   }
-
-  useState(() => {
-    fetchServices()
-  }, [])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -66,17 +72,15 @@ export default function AdminMassOrderPage() {
   }
 
   const handleSubmit = async () => {
-    if (!serviceId || !userId || preview.length === 0) return alert("Lengkapi semua field")
+    if (!serviceId || preview.length === 0) return alert("Pilih layanan dan upload file CSV")
     setLoading(true)
-    const res = await fetch("/api/admin/mass-order", {
+    const res = await fetch("/api/mass-order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, serviceId, items: preview }),
+      body: JSON.stringify({ serviceId, items: preview }),
     })
     if (res.ok) {
-      alert("Order berhasil dibuat!")
-      setPreview([])
-      setFile(null)
+      router.push("/cart")
     } else {
       alert("Gagal membuat mass order")
     }
@@ -84,45 +88,32 @@ export default function AdminMassOrderPage() {
   }
 
   return (
-    <div>
-      <h2 className="font-heading text-2xl font-bold mb-6">Mass Order (Admin)</h2>
-      <div className="bg-card border border-border rounded-xl p-6 max-w-4xl">
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <h1 className="font-heading text-3xl font-bold mb-6">Mass Order (Upload CSV)</h1>
+      <div className="bg-card border border-border rounded-xl p-6 mb-6">
         <p className="text-sm text-gray-500 mb-4">
-          Upload CSV dengan format: targetLink, profileName, quantity
+          Upload file CSV dengan format: <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">targetLink, profileName, quantity</code>.
+          Baris pertama adalah header.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div>
-            <label className="block text-sm mb-2">User ID (atau email)</label>
-            <input
-              type="text"
-              value={userId}
-              onChange={e => setUserId(e.target.value)}
-              placeholder="Masukkan email user"
-              className="border rounded px-3 py-2 w-full bg-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm mb-2">Pilih Layanan</label>
-            <select
-              value={serviceId}
-              onChange={e => setServiceId(e.target.value)}
-              className="border rounded px-3 py-2 w-full bg-transparent"
-            >
-              <option value="">Pilih Layanan</option>
-              {services.map((s: any) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm mb-2">File CSV</label>
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleFileChange}
-            />
-          </div>
+        <div className="mb-4">
+          <label className="block text-sm mb-2">Pilih Layanan</label>
+          <select
+            value={serviceId}
+            onChange={e => setServiceId(e.target.value)}
+            className="border rounded px-3 py-2 w-full bg-transparent"
+          >
+            <option value="">Pilih Layanan</option>
+            {services.map((s: any) => (
+              <option key={s.id} value={s.id}>{s.name} (Min: {s.minOrder})</option>
+            ))}
+          </select>
         </div>
+        <input
+          type="file"
+          accept=".csv"
+          onChange={handleFileChange}
+          className="mb-4"
+        />
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
         {preview.length > 0 && (
           <div className="mb-4">
@@ -140,10 +131,10 @@ export default function AdminMassOrderPage() {
         )}
         <button
           onClick={handleSubmit}
-          disabled={!file || !serviceId || !userId || loading}
+          disabled={!file || !serviceId || loading}
           className="bg-primary text-white px-6 py-2 rounded-full disabled:opacity-50"
         >
-          {loading ? "Memproses..." : "Buat Order"}
+          {loading ? "Memproses..." : "Tambah ke Keranjang"}
         </button>
       </div>
     </div>

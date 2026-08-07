@@ -1,0 +1,493 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  name                String
+  username            String               @unique
+  email               String               @unique
+  phone               String?
+  password            String
+  image               String?
+  role                Role                 @default(USER)
+  tier                Tier                 @default(BRONZE)
+  points              Int                  @default(0)
+  totalSpent          Int                  @default(0)
+  status              UserStatus           @default(ACTIVE)
+  suspendUntil        DateTime?
+  banReason           String?
+  lastLoginAt         DateTime?
+  lastProfileEdit     DateTime?
+  passwordChangedAt   DateTime?
+  forceLogoutAt       DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  referralCode        String?              @unique
+  lastSpinDate        DateTime?
+  bonusClaimed        Boolean              @default(false)
+  activityLogs        ActivityLog[]
+  chatMessages        ChatMessage[]
+  adminChatRooms      ChatRoom[]           @relation("AdminChat")
+  chatRooms           ChatRoom[]           @relation("UserChatRoom")
+  notifications       Notification[]
+  orders              Order[]
+  resetTokens         PasswordResetToken[]
+  adminPointHistories PointHistory[]       @relation("PointAdmin")
+  pointHistories      PointHistory[]       @relation("PointUser")
+  referralsUsed       Referral?            @relation("ReferredUser")
+  referralsMade       Referral[]           @relation("ReferringUser")
+  reviews             Review[]
+  spinRecords         SpinRecord[]
+  topupTransactions   TopupTransaction[]
+  visitorLogs         VisitorLog[]
+  wallet              Wallet?
+  refunds             Refund[]
+  talentGroupChats   TalentGroupChat[]
+  jobClaims     JobClaim[]
+  paymentMethods TalentPaymentMethod[]
+  assignedJobs      Job[]    @relation("AssignedJobs")
+  createdJobs       Job[]    @relation("CreatedJobs")
+}
+
+model Platform {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  icon      String?
+  createdAt DateTime  @default(now())
+  services  Service[]
+}
+
+model Service {
+  id           String      @id @default(cuid())
+  platformId   String
+  name         String
+  slug         String
+  minOrder     Int         @default(10)
+  pricePerUnit Int
+  type         String      @default("SINGLE")
+  bundleItems  Json?
+  bundlePrice  Int?
+  hasGaransi   Boolean     @default(false)
+  badge        String?
+  description  String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  orderItems   OrderItem[]
+  platform     Platform    @relation(fields: [platformId], references: [id])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String
+  status          OrderStatus @default(PENDING_PAYMENT)
+  totalPrice      Int
+  paymentMethod   String?
+  paymentProof    String?
+  isGaransi       Boolean     @default(false)
+  garansiStart    DateTime?
+  garansiEnd      DateTime?
+  refillStatus    String?     @default("NONE")
+  refillReason    String?
+  adminNote       String?
+  completionFile  String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  dripFeedBatches Json?
+  dripFeedRequest Boolean     @default(false)
+  user            User        @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  review          Review?
+  refunds         Refund[]
+  jobs              Job[]
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  serviceId   String
+  targetLink  String
+  profileName String?
+  notes       String?
+  startCount  Int?
+  endCount    Int?
+  quantity    Int
+  price       Int
+  createdAt   DateTime @default(now())
+  delivered   Int      @default(0)
+  order       Order    @relation(fields: [orderId], references: [id])
+  service     Service  @relation(fields: [serviceId], references: [id])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  orderId    String   @unique
+  userId     String
+  rating     Int
+  comment    String?
+  serviceName String?
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  order      Order    @relation(fields: [orderId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model PaymentMethod {
+  id            String   @id @default(cuid())
+  name          String
+  type          String
+  accountNumber String?
+  accountName   String?
+  instructions  String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  qrisImage     String?
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model ChatRoom {
+  id        String        @id @default(cuid())
+  userId    String
+  adminId   String?
+  status    String        @default("baru")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+  admin     User?         @relation("AdminChat", fields: [adminId], references: [id])
+  user      User          @relation("UserChatRoom", fields: [userId], references: [id])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String?
+  role      String
+  content   String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  audioUrl  String?
+  imageUrl  String?
+  roomId    String
+  room      ChatRoom @relation(fields: [roomId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model VisitorLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  page      String
+  ip        String
+  browser   String
+  device    String
+  createdAt DateTime @default(now())
+  latitude  Float?
+  longitude Float?
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model Faq {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model AboutPage {
+  id      String @id @default(cuid())
+  content String
+}
+
+model AudioTrack {
+  id        String   @id @default(cuid())
+  category  String
+  title     String
+  fileUrl   String
+  duration  Int?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Sound {
+  id        String   @id @default(cuid())
+  category  String
+  label     String
+  fileUrl   String
+  createdAt DateTime @default(now())
+}
+
+model Referral {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  pointsGiven Int      @default(0)
+  refereeId   String   @unique
+  referrerId  String
+  referee     User     @relation("ReferredUser", fields: [refereeId], references: [id])
+  referrer    User     @relation("ReferringUser", fields: [referrerId], references: [id])
+}
+
+model SpinRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  prize     Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Competitor {
+  id              String   @id @default(cuid())
+  platform        String
+  service         String
+  competitorName  String
+  competitorPrice Int
+  ourPrice        Int
+  createdAt       DateTime @default(now())
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model PointHistory {
+  id        String   @id @default(cuid())
+  adminId   String
+  userId    String?
+  name      String
+  poin      Int
+  userCount Int      @default(1)
+  createdAt DateTime @default(now())
+  admin     User     @relation("PointAdmin", fields: [adminId], references: [id])
+  user      User?    @relation("PointUser", fields: [userId], references: [id])
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Int      @default(0)
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model TopupTransaction {
+  id            String   @id @default(cuid())
+  userId        String
+  amount        Int
+  paymentMethod String
+  status        String   @default("PENDING")
+  paymentProof  String?
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
+
+model BlogPost {
+  id        String   @id @default(cuid())
+  title     String
+  slug      String   @unique
+  content   String
+  excerpt   String?
+  image     String?
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  TALENT
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum Tier {
+  BRONZE
+  SILVER
+  GOLD
+  EXHAS_FRIEND
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+  SUSPENDED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PROCESSING
+  PROGRESS
+  PARTIAL
+  COMPLETED
+  CANCELLED
+}
+
+model Promo {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  bannerUrl   String?
+  promoType   String   @default("DISKON_TANGGAL")
+  discount    Int      @default(0)
+  minAmount   Int      @default(0)
+  jamMulai    Int?
+  jamSelesai  Int?
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ApiKey {
+  id               String            @id @default(cuid())
+  name             String
+  key              String            @unique
+  userId           String
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  resellerRequests ResellerRequest[]
+}
+
+model ResellerRequest {
+  id           String   @id @default(cuid())
+  name         String
+  email        String
+  businessName String?
+  notes        String?
+  status       String   @default("PENDING")
+  apiKeyId     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  apiKey       ApiKey?  @relation(fields: [apiKeyId], references: [id])
+}
+
+model Refund {
+  id        String        @id @default(cuid())
+  orderId   String
+  userId    String
+  amount    Int
+  reason    String?
+  status    String        @default("PENDING")
+  adminNote String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  order     Order         @relation(fields: [orderId], references: [id])
+  user      User          @relation(fields: [userId], references: [id])
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  imageUrl  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Job {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  status        String    @default("DRAFT")
+  priority      String    @default("MEDIUM")
+  deadline      DateTime?
+  quantity      Int?
+  price         Int?
+  assignedTo    String?
+  createdBy     String
+  orderId       String?
+  gdriveLink    String?
+  targetLink    String?
+  submitNote    String?
+  revisionNote  String?
+  submittedAt   DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  talent        User?     @relation("AssignedJobs", fields: [assignedTo], references: [id])
+  admin         User      @relation("CreatedJobs", fields: [createdBy], references: [id])
+  order         Order?    @relation(fields: [orderId], references: [id])
+  claims        JobClaim[]
+}
+
+// Tambahkan ini di dalam model User (di atas atau di bawah field lain)
+// assignedJobs   Job[]    @relation("AssignedJobs")
+// createdJobs    Job[]    @relation("CreatedJobs")
+
+model TalentGroupChat {
+  id        String   @id @default(cuid())
+  userId    String
+  message   String
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+// Field quantity untuk model Job sudah ada? Kita cek dulu.
+
+model JobClaim {
+  id        String   @id @default(cuid())
+  jobId     String
+  userId    String
+  name      String
+  quantity  Int
+  note      String?
+  status    String   @default("CLAIMED")
+  adminNote   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  job       Job      @relation(fields: [jobId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model TalentPaymentMethod {
+  id            String   @id @default(cuid())
+  userId        String
+  accountName   String
+  bankName      String
+  accountNumber String
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id])
+}

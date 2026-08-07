@@ -36,17 +36,21 @@ export async function PUT(
         banReason: body.reason,
       },
     });
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: "Admin berhasil dinonaktifkan. Admin tersebut akan otomatis logout." });
   } else if (body.action === "reset-password") {
     if (!body.password) {
       return NextResponse.json({ error: "Password baru diperlukan" }, { status: 400 });
     }
     const hashedPassword = await bcrypt.hash(body.password, 10);
+    // Update password + set passwordChangedAt = now → force logout
     await prisma.user.update({
       where: { id },
-      data: { password: hashedPassword },
+      data: { 
+        password: hashedPassword,
+        passwordChangedAt: new Date(),
+      },
     });
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: "Password berhasil direset. Admin tersebut akan otomatis logout dan harus login dengan password baru." });
   }
 
   return NextResponse.json({ error: "Aksi tidak dikenali" }, { status: 400 });

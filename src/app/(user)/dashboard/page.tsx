@@ -5,6 +5,8 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import CopyButton from "./CopyButton"
 import { formatCurrency } from "@/lib/utils"
+import WelcomeBonus from "@/components/WelcomeBonus"
+import DashboardBanner from "@/components/DashboardBanner"
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
@@ -16,6 +18,7 @@ export default async function DashboardPage() {
       orders: { orderBy: { createdAt: "desc" }, take: 5 },
       referralsMade: true,
       referralsUsed: { include: { referrer: { select: { name: true } } } },
+      wallet: true,
     },
   })
 
@@ -33,6 +36,7 @@ export default async function DashboardPage() {
         orders: { orderBy: { createdAt: "desc" }, take: 5 },
         referralsMade: true,
         referralsUsed: { include: { referrer: { select: { name: true } } } },
+        wallet: true,
       },
     })
   }
@@ -54,9 +58,17 @@ export default async function DashboardPage() {
   today.setHours(0, 0, 0, 0)
   const hasSpunToday = user.lastSpinDate ? new Date(user.lastSpinDate) >= today : false
 
+  const walletBalance = user.wallet?.balance || 0
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      <WelcomeBonus />
+      <DashboardBanner />
       <h1 className="font-heading text-3xl font-bold mb-6">Dashboard</h1>
+
+      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl p-3 mb-6 text-sm text-green-900 dark:text-green-200">
+        👋 Selamat datang kembali, {user.name}! Saldo kamu: <strong className="text-green-700 dark:text-green-300">{formatCurrency(walletBalance)}</strong>. Ada Promo Setiap Hari Disini!
+      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <StatCard label="Processing" value={orderCounts.PROCESSING} color="blue" />
@@ -66,6 +78,10 @@ export default async function DashboardPage() {
       </div>
 
       <div className="bg-card border border-border rounded-xl p-6 mb-6">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-gray-500">Saldo Exha</span>
+          <span className="font-bold text-green-500">{formatCurrency(walletBalance)}</span>
+        </div>
         <div className="flex justify-between items-center mb-2">
           <span className="text-gray-500">Exha Points</span>
           <span className="font-bold text-primary">{user.points} poin</span>

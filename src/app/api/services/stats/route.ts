@@ -1,59 +1,51 @@
 import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
 export async function GET() {
-  // Hitung total order per service (COMPLETED)
-  const serviceOrderCounts = await prisma.orderItem.groupBy({
-    by: ["serviceId"],
-    _count: { id: true },
-    where: {
-      order: { status: "COMPLETED" },
-    },
+  const session = await getServerSession(authOptions)
+  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN"))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // Ambil order items dari order yang COMPLETED
+  const orderItems = await prisma.orderItem.findMany({
+    where: { order: { status: "COMPLETED" } },
+    select: { serviceId: true },
   })
 
-  // Mapping serviceId -> orderCount
+  // Hitung jumlah order per service
   const countMap = new Map<string, number>()
-  for (const item of serviceOrderCounts) {
-    countMap.set(item.serviceId, item._count.id)
-  }
+  orderItems.forEach(item => {
+    countMap.set(item.serviceId, (countMap.get(item.serviceId) || 0) + 1)
+  })
 
-  // Hitung rating rata-rata per service (dari testimoni approved)
-  // Kita perlu join melalui OrderItem -> Order -> Review
+  // Ambil review yang sudah disetujui
   const reviews = await prisma.review.findMany({
     where: { isApproved: true },
-    include: {
-      order: {
-        include: {
-          items: {
-            include: { service: true },
-          },
-        },
-      },
+    select: {
+      order: { select: { items: { select: { serviceId: true } } } },
+      rating: true,
     },
   })
 
-  // Mapping serviceId -> { totalRating, count }
+  // Hitung rata-rata rating per service
   const ratingMap = new Map<string, { total: number; count: number }>()
-  for (const review of reviews) {
-    for (const item of review.order.items) {
-      const existing = ratingMap.get(item.serviceId) || { total: 0, count: 0 }
-      ratingMap.set(item.serviceId, {
-        total: existing.total + review.rating,
-        count: existing.count + 1,
-      })
-    }
-  }
+  reviews.forEach(review => {
+    const serviceIds = review.order?.items?.map(i => i.serviceId) || []
+    serviceIds.forEach(sid => {
+      const current = ratingMap.get(sid) || { total: 0, count: 0 }
+      ratingMap.set(sid, { total: current.total + review.rating, count: current.count + 1 })
+    })
+  })
 
-  // Gabungkan
+  // Gabungkan hasil menggunakan Array.from (kompatibel tanpa downlevelIteration)
   const stats: Record<string, { orderCount: number; avgRating: number }> = {}
-  for (const [serviceId, orderCount] of countMap) {
+  Array.from(countMap.entries()).forEach(([serviceId, orderCount]) => {
     const ratingData = ratingMap.get(serviceId)
     const avgRating = ratingData ? ratingData.total / ratingData.count : 0
-    stats[serviceId] = {
-      orderCount,
-      avgRating: Math.round(avgRating * 10) / 10,
-    }
-  }
+    stats[serviceId] = { orderCount, avgRating: Math.round(avgRating * 10) / 10 }
+  })
 
   return NextResponse.json({ stats })
 }

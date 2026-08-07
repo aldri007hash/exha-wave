@@ -4,14 +4,18 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
-  const userId = session?.user?.id || null
+  let userId: string | null = null
+  try {
+    const session = await getServerSession(authOptions)
+    if (session?.user?.id) {
+      const userExists = await prisma.user.findUnique({ where: { id: session.user.id } })
+      if (userExists) userId = session.user.id
+    }
+  } catch {}
 
-  // Dapatkan IP dari header (tergantung environment)
   const forwarded = req.headers.get("x-forwarded-for")
   const ip = forwarded ? forwarded.split(",")[0] : "127.0.0.1"
 
-  // Cek apakah koordinat sudah ada untuk IP ini dalam 24 jam
   const existing = await prisma.visitorLog.findFirst({
     where: {
       ip,
@@ -24,7 +28,6 @@ export async function POST(req: Request) {
   let longitude: number | null = null
 
   if (!existing) {
-    // Dapatkan koordinat dari IP-API (gratis)
     try {
       const geoRes = await fetch(`http://ip-api.com/json/${ip}?fields=lat,lon`)
       if (geoRes.ok) {
@@ -32,15 +35,12 @@ export async function POST(req: Request) {
         latitude = geoData.lat
         longitude = geoData.lon
       }
-    } catch (error) {
-      console.error("Geolocation failed:", error)
-    }
+    } catch {}
   } else {
     latitude = existing.latitude
     longitude = existing.longitude
   }
 
-  // Simpan visitor log
   await prisma.visitorLog.create({
     data: {
       userId,

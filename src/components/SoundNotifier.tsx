@@ -13,7 +13,7 @@ export default function SoundNotifier() {
   const { data: soundsData } = useSWR("/api/sounds", fetcher, { refreshInterval: 0 })
   const sounds = soundsData?.sounds || []
 
-  const { data: notifData } = useSWR(session?.user ? "/api/notifications" : null, fetcher, { refreshInterval: 10000 })
+  const { data: notifData } = useSWR(session?.user ? "/api/notifications" : null, fetcher, { refreshInterval: 60000 })
 
   const playSound = useCallback((category: string) => {
     const matching = sounds.find((s: any) => s.category === category)

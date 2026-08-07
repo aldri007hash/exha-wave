@@ -2,7 +2,15 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
 export async function POST(req: Request) {
-  const { page, ip, browser, device, userId } = await req.json()
+  const { page, ip, browser, device, userId: rawUserId } = await req.json()
+
+  let userId: string | null = null
+  if (rawUserId) {
+    try {
+      const userExists = await prisma.user.findUnique({ where: { id: rawUserId } })
+      if (userExists) userId = rawUserId
+    } catch {}
+  }
 
   try {
     await prisma.visitorLog.create({
@@ -11,7 +19,7 @@ export async function POST(req: Request) {
         ip: ip || "unknown",
         browser: browser || "Unknown",
         device: device || "Unknown",
-        userId: userId || null,
+        userId,
       },
     })
   } catch (error) {

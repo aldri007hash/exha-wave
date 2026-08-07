@@ -1,14 +1,17 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 export default function ProfilePage() {
   const { data: session, update } = useSession()
+  const router = useRouter()
   const [form, setForm] = useState({ name: "", email: "", phone: "" })
   const [image, setImage] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [canEdit, setCanEdit] = useState(true)
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -17,12 +20,25 @@ export default function ProfilePage() {
       setForm({
         name: session.user.name || "",
         email: session.user.email || "",
-        phone: session.user.phone || "",
+        phone: (session.user as any).phone || "",
       })
       setImage(session.user.image || null)
-      fetch("/api/profile/check-edit")
-        .then(res => res.json())
-        .then(data => setCanEdit(data.canEdit))
+      if (session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN") {
+        setCanEdit(true)
+      } else {
+        fetch("/api/profile")
+          .then(res => res.json())
+          .then(data => {
+            if (data.lastProfileEdit) {
+              const lastEdit = new Date(data.lastProfileEdit).getTime()
+              const now = Date.now()
+              const sevenDays = 7 * 24 * 60 * 60 * 1000
+              setCanEdit(now - lastEdit >= sevenDays)
+            } else {
+              setCanEdit(true)
+            }
+          })
+      }
     }
   }, [session])
 
@@ -39,7 +55,16 @@ export default function ProfilePage() {
 
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
     if (!cloudName) {
-      setError("Cloudinary belum dikonfigurasi. Isi NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME di .env")
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("folder", "profiles")
+      const res = await fetch("/api/upload/chat", { method: "POST", body: formData })
+      const data = await res.json()
+      if (data.url) {
+        setImage(data.url)
+      } else {
+        setError("Gagal upload")
+      }
       setUploading(false)
       return
     }
@@ -56,9 +81,8 @@ export default function ProfilePage() {
       const data = await res.json()
       if (data.secure_url) {
         setImage(data.secure_url)
-        setError("")
       } else {
-        setError("Gagal upload: " + (data.error?.message || "Preset 'exha_wave_preset' tidak ditemukan. Buat di Settings → Upload → Add upload preset."))
+        setError("Gagal upload: " + (data.error?.message || "Preset tidak ditemukan"))
       }
     } catch {
       setError("Gagal upload, periksa koneksi internet.")
@@ -68,7 +92,7 @@ export default function ProfilePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!canEdit && session?.user?.role !== "ADMIN") {
+    if (!canEdit && session?.user?.role === "USER") {
       setError("Anda hanya bisa mengedit profil 1x dalam 7 hari.")
       return
     }
@@ -83,10 +107,24 @@ export default function ProfilePage() {
       })
 
       if (res.ok) {
-        // PENTING: panggil update() agar session ter-refresh
-        await update()
+        const data = await res.json()
+        // Update session dengan data baru
+        await update({
+          ...session,
+          user: {
+            ...session?.user,
+            name: data.user.name,
+            email: data.user.email,
+            phone: data.user.phone,
+            image: data.user.image,
+          },
+        })
+        setSuccess("Profil berhasil disimpan!")
         setEditing(false)
         setError("")
+        if (session?.user?.role === "USER") setCanEdit(false)
+        setTimeout(() => setSuccess(""), 3000)
+        router.refresh() // Paksa refresh halaman untuk menampilkan data terbaru
       } else {
         const data = await res.json()
         setError(data.error || "Gagal menyimpan profil")
@@ -114,15 +152,19 @@ export default function ProfilePage() {
             <p><strong>Nama:</strong> {form.name}</p>
             <p><strong>Email:</strong> {form.email}</p>
             <p><strong>Telepon:</strong> {form.phone || "-"}</p>
-            <button onClick={() => setEditing(true)} className="bg-primary text-white px-6 py-2 rounded-full mt-4">Edit Profile</button>
+            {!canEdit && session?.user?.role === "USER" && (
+              <p className="text-sm text-yellow-500">Anda hanya bisa edit profil 1x dalam 7 hari.</p>
+            )}
+            {canEdit && (
+              <button onClick={() => setEditing(true)} className="bg-primary text-white px-6 py-2 rounded-full mt-4">
+                Edit Profile
+              </button>
+            )}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 p-3 rounded-xl text-sm">
-                {error}
-              </div>
-            )}
+            {error && <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 text-red-600 p-3 rounded-xl text-sm">{error}</div>}
+            {success && <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 text-green-600 p-3 rounded-xl text-sm">{success}</div>}
 
             <div className="flex flex-col items-center gap-2">
               <div className="relative">
@@ -131,18 +173,12 @@ export default function ProfilePage() {
                 ) : (
                   <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-3xl">{form.name?.[0] || "?"}</div>
                 )}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 bg-primary text-white rounded-full p-2 shadow-md hover:shadow-lg transition-all"
-                  title="Upload Foto"
-                >
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 bg-primary text-white rounded-full p-2 shadow-md">
                   📷
                 </button>
               </div>
               <input ref={fileInputRef} type="file" accept="image/png, image/jpeg, image/jpg" onChange={handleImageUpload} className="hidden" />
-              {uploading && <p className="text-xs text-muted-foreground animate-pulse">Mengupload...</p>}
-              {image && !uploading && <p className="text-xs text-green-500">✅ Foto berhasil diupload, klik Simpan untuk menyimpan</p>}
+              {uploading && <p className="text-xs">Mengupload...</p>}
             </div>
 
             <div>

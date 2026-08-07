@@ -48,6 +48,11 @@ export async function POST(req: Request) {
         slug: body.name.toLowerCase().replace(/\s/g, "-"),
         minOrder: body.minOrder,
         pricePerUnit: body.pricePerUnit,
+        bundlePrice: body.bundlePrice || null,
+        type: body.serviceType || "SINGLE",
+        bundleItems: body.bundleItems || null,
+        hasGaransi: body.hasGaransi || false,
+        badge: body.badge || null,
         isActive: body.isActive,
       },
     })
@@ -62,7 +67,18 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const body = await req.json()
-  const { id, ...data } = body
+  const { id, platformId, serviceType, ...rest } = body
+
+  const data: any = { ...rest }
+  if (serviceType) data.type = serviceType
+  delete data.id
+
+  if (data.bundleItems !== undefined) {
+    if (typeof data.bundleItems === "string") {
+      try { data.bundleItems = JSON.parse(data.bundleItems) } catch {}
+    }
+  }
+
   await prisma.service.update({ where: { id }, data })
   return NextResponse.json({ success: true })
 }
@@ -74,44 +90,38 @@ export async function DELETE(req: Request) {
 
   const { searchParams } = new URL(req.url)
   const id = searchParams.get("id")
-  const type = searchParams.get("type") // "platform" atau "service"
+  const type = searchParams.get("type")
 
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 })
 
   try {
     if (type === "platform") {
-      // Dapatkan semua service dalam platform ini
+      // Cek apakah platform ada
+      const platform = await prisma.platform.findUnique({ where: { id } })
+      if (!platform) {
+        return NextResponse.json({ success: true, message: "Platform sudah tidak ada" })
+      }
       const services = await prisma.service.findMany({ where: { platformId: id } })
       const serviceIds = services.map(s => s.id)
-
-      // Hapus semua OrderItem yang terkait dengan service-service tersebut
       if (serviceIds.length > 0) {
-        await prisma.orderItem.deleteMany({
-          where: { serviceId: { in: serviceIds } }
-        })
+        await prisma.orderItem.deleteMany({ where: { serviceId: { in: serviceIds } } })
       }
-
-      // Hapus semua service dalam platform
       await prisma.service.deleteMany({ where: { platformId: id } })
-
-      // Hapus platform
       await prisma.platform.delete({ where: { id } })
-
       return NextResponse.json({ success: true })
     }
 
-    // Hapus service (default)
-    // Hapus dulu semua OrderItem yang terkait
-    await prisma.orderItem.deleteMany({
-      where: { serviceId: id }
-    })
+    // Cek apakah layanan ada
+    const service = await prisma.service.findUnique({ where: { id } })
+    if (!service) {
+      return NextResponse.json({ success: true, message: "Layanan sudah tidak ada" })
+    }
 
-    // Hapus service
+    await prisma.orderItem.deleteMany({ where: { serviceId: id } })
     await prisma.service.delete({ where: { id } })
-
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error deleting service/platform:", error)
-    return NextResponse.json({ error: "Gagal menghapus. Data mungkin masih digunakan." }, { status: 500 })
+    return NextResponse.json({ error: "Gagal menghapus. Silakan coba lagi." }, { status: 500 })
   }
 }

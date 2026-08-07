@@ -18,8 +18,11 @@ export async function PUT(req: NextRequest) {
   const hashedPassword = await bcrypt.hash(password, 10);
   await prisma.user.update({
     where: { id: session.user.id },
-    data: { password: hashedPassword },
+    data: { 
+      password: hashedPassword,
+      passwordChangedAt: new Date(),
+    },
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, message: "Password berhasil diubah." });
 }

@@ -1,88 +1,125 @@
 "use client"
-import { useEffect, useRef, useState } from "react"
 import { useAudio } from "@/context/AudioContext"
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, Square } from "lucide-react"
-import * as THREE from "three"
+import { X, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react"
+
+function formatTime(seconds: number): string {
+  if (!seconds || isNaN(seconds)) return "0:00"
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs.toString().padStart(2, "0")}`
+}
 
 export default function AdminAudioPlayer() {
-  const { tracks, currentIndex, isPlaying, togglePlay, nextTrack, prevTrack, audioRef, setCurrentIndex } = useAudio()
-  const canvasRef = useRef<HTMLDivElement>(null)
-  const currentTrack = currentIndex >= 0 ? tracks[currentIndex] : null
-  const [volume, setVolume] = useState(1)
-  const [isMuted, setIsMuted] = useState(false)
-  const [visible, setVisible] = useState(true)
+  const {
+    tracks, currentIndex, isPlaying, togglePlay,
+    nextTrack, prevTrack, setCurrentIndex, audioRef,
+    volume, setVolume, currentTime, duration, seek, closePlayer
+  } = useAudio()
 
-  useEffect(() => {
-    if (!canvasRef.current || !visible) return
-    const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000)
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true })
-    renderer.setSize(80, 80)
-    canvasRef.current.appendChild(renderer.domElement)
+  if (currentIndex < 0 || !tracks[currentIndex]) return null
 
-    const geometry = new THREE.CylinderGeometry(0.35, 0.35, 0.04, 64)
-    const material = new THREE.MeshStandardMaterial({ color: 0x0066FF, roughness: 0.2, metalness: 0.8 })
-    const disc = new THREE.Mesh(geometry, material)
-    scene.add(disc)
+  const currentTrack = tracks[currentIndex]
 
-    const light = new THREE.DirectionalLight(0xffffff, 1)
-    light.position.set(0, 0, 2)
-    scene.add(light)
-    scene.add(new THREE.AmbientLight(0x404040))
-    camera.position.z = 1.2
-
-    let animationId: number
-    const animate = () => {
-      animationId = requestAnimationFrame(animate)
-      if (isPlaying) disc.rotation.y += 0.02
-      renderer.render(scene, camera)
-    }
-    animate()
-    return () => {
-      cancelAnimationFrame(animationId)
-      if (canvasRef.current?.contains(renderer.domElement)) {
-        canvasRef.current.removeChild(renderer.domElement)
-      }
-    }
-  }, [isPlaying, visible])
-
-  const handleStop = () => {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.currentTime = 0
-    }
-    setCurrentIndex(-1)
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    seek(Number(e.target.value))
   }
 
-  if (!currentTrack || !visible) return null
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setVolume(Number(e.target.value))
+  }
+
+  const toggleMute = () => {
+    setVolume(volume > 0 ? 0 : 1)
+  }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 bg-card border border-border rounded-xl p-3 shadow-lg">
-      <div ref={canvasRef} className="w-10 h-10" />
-      <div className="flex flex-col min-w-[100px]">
-        <p className="text-sm font-semibold truncate">{currentTrack.title || "Tanpa judul"}</p>
-        <p className="text-xs text-gray-500">{currentTrack.category}</p>
-        <input
-          type="range"
-          min="0"
-          max={audioRef.current?.duration || 0}
-          value={audioRef.current?.currentTime || 0}
-          onChange={(e) => { if (audioRef.current) audioRef.current.currentTime = Number(e.target.value) }}
-          className="w-full mt-1 h-1 accent-primary"
-        />
-      </div>
-      <div className="flex items-center gap-1">
-        <button onClick={prevTrack} className="p-1 hover:bg-primary/10 rounded"><SkipBack size={14} /></button>
-        <button onClick={togglePlay} className="p-1 hover:bg-primary/10 rounded">{isPlaying ? <Pause size={14} /> : <Play size={14} />}</button>
-        <button onClick={handleStop} className="p-1 hover:bg-primary/10 rounded"><Square size={14} /></button>
-        <button onClick={nextTrack} className="p-1 hover:bg-primary/10 rounded"><SkipForward size={14} /></button>
-      </div>
-      <div className="flex items-center gap-1">
-        <button onClick={() => setVisible(false)} className="p-1 hover:bg-red-100 rounded"><X size={14} /></button>
-        <button onClick={() => { /* volume control bisa ditambahkan */ }}>
-          <Volume2 size={14} />
+    <div className="fixed bottom-4 right-4 z-50 bg-gray-900 text-white rounded-2xl p-4 shadow-2xl w-[calc(100%-2rem)] max-w-[340px] animate-slide-up">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-gray-400 flex items-center gap-1">
+          🎵 Now Playing
+        </span>
+        <button onClick={closePlayer} className="text-gray-400 hover:text-white p-1" aria-label="Tutup player">
+          <X size={16} />
         </button>
       </div>
+
+      {/* Track info */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0">
+          <span className="text-lg">🎵</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{currentTrack.title || "Tanpa judul"}</p>
+          <p className="text-xs text-gray-400">{currentTrack.category}</p>
+        </div>
+      </div>
+
+      {/* Seek bar + durasi */}
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[10px] text-gray-400 w-10 text-right">{formatTime(currentTime)}</span>
+        <input
+          type="range"
+          min={0}
+          max={duration || 0}
+          step={0.1}
+          value={currentTime}
+          onChange={handleSeek}
+          className="flex-1 h-1 accent-primary cursor-pointer"
+          aria-label="Seek"
+        />
+        <span className="text-[10px] text-gray-400 w-10">{formatTime(duration)}</span>
+      </div>
+
+      {/* Tombol kontrol */}
+      <div className="flex items-center justify-center gap-2 mt-2">
+        <button onClick={prevTrack} className="p-1.5 hover:bg-gray-700 rounded-full" title="Sebelumnya">
+          <SkipBack size={16} />
+        </button>
+        <button onClick={togglePlay} className="p-2 bg-primary rounded-full hover:bg-primary/80" title={isPlaying ? "Jeda" : "Putar"}>
+          {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+        </button>
+        <button onClick={nextTrack} className="p-1.5 hover:bg-gray-700 rounded-full" title="Berikutnya">
+          <SkipForward size={16} />
+        </button>
+      </div>
+
+      {/* Volume slider */}
+      <div className="flex items-center gap-2 mt-3">
+        <button onClick={toggleMute} className="p-1 hover:bg-gray-700 rounded-full" title={volume > 0 ? "Bisukan" : "Bunyikan"}>
+          {volume > 0 ? <Volume2 size={14} /> : <VolumeX size={14} />}
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={volume}
+          onChange={handleVolumeChange}
+          className="flex-1 h-1 accent-primary cursor-pointer"
+          aria-label="Volume"
+        />
+        <span className="text-[10px] text-gray-400 w-8 text-right">{Math.round(volume * 100)}%</span>
+      </div>
+
+      {/* Daftar lagu (mini) */}
+      {tracks.length > 1 && (
+        <div className="mt-3 max-h-24 overflow-y-auto border-t border-gray-700 pt-2">
+          <p className="text-[10px] text-gray-500 mb-1">Daftar Putar</p>
+          {tracks.map((track, idx) => (
+            <button
+              key={track.id}
+              onClick={() => setCurrentIndex(idx)}
+              className={`w-full text-left text-xs py-1 px-2 rounded truncate flex items-center gap-2 ${
+                idx === currentIndex ? "bg-primary/20 text-white font-medium" : "text-gray-400 hover:bg-gray-800"
+              }`}
+            >
+              <span className="w-5 text-center text-[10px]">{idx + 1}</span>
+              <span className="truncate">{track.title || "Tanpa judul"}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

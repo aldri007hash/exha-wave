@@ -3,36 +3,46 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const order = await prisma.order.findUnique({ where: { id: params.id } })
+  const { orderId, dripDays } = await req.json()
+
+  const order = await prisma.order.findUnique({
+    where: { id: params.id },
+    include: { items: true },
+  })
   if (!order || order.userId !== session.user.id) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 })
+    return NextResponse.json({ error: "Order tidak ditemukan" }, { status: 404 })
   }
 
-  const { dripFeedDays, dripFeedPerDay } = await req.json()
-  if (!dripFeedDays || !dripFeedPerDay) {
-    return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 })
+  // Bagi items ke dalam batch per hari
+  const items = order.items
+  const itemsPerDay = Math.ceil(items.length / dripDays)
+  const batches = []
+  for (let i = 0; i < dripDays; i++) {
+    const start = i * itemsPerDay
+    const end = start + itemsPerDay
+    const dayItems = items.slice(start, end)
+    batches.push({
+      day: i + 1,
+      items: dayItems.map(item => ({
+        id: item.id,
+        serviceName: item.serviceId,
+        targetLink: item.targetLink,
+        quantity: item.quantity,
+      })),
+      completed: false,
+    })
   }
-
-  // Hitung unit per hari dan siapkan batch
-  const batches = Array.from({ length: dripFeedDays }, (_, i) => ({
-    day: i + 1,
-    quantity: dripFeedPerDay,
-    completed: false,
-  }))
 
   await prisma.order.update({
     where: { id: params.id },
     data: {
-      dripFeed: true,
-      dripFeedDays,
-      dripFeedPerDay,
-      dripFeedStatus: "PENDING",
+      dripFeedRequest: true,
       dripFeedBatches: batches,
-      status: "PENDING_DRIP_FEED",
+      status: "PROCESSING",
     },
   })
 

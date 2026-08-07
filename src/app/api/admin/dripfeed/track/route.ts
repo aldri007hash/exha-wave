@@ -5,10 +5,14 @@ import { prisma } from "@/lib/prisma"
 
 export async function GET() {
   const session = await getServerSession(authOptions)
-  if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN"))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const orders = await prisma.order.findMany({
-    where: { dripFeed: true, dripFeedStatus: "APPROVED" },
+    where: {
+      dripFeedRequest: true,
+      status: { notIn: ["COMPLETED", "CANCELLED"] },
+    },
     include: { user: { select: { name: true, email: true } } },
     orderBy: { createdAt: "desc" },
   })
@@ -17,7 +21,8 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   const session = await getServerSession(authOptions)
-  if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN"))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { orderId, day } = await req.json()
   const order = await prisma.order.findUnique({ where: { id: orderId } })
@@ -31,7 +36,6 @@ export async function PUT(req: Request) {
     where: { id: orderId },
     data: {
       dripFeedBatches: updated,
-      dripFeedCompleted: completedCount,
       status: completedCount === batches.length ? "COMPLETED" : "PROGRESS",
     },
   })

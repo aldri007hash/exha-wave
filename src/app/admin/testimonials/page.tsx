@@ -14,6 +14,13 @@ export default function AdminTestimonialsPage() {
     setReviews(data.reviews || [])
   }
 
+  const triggerPublicRefresh = () => {
+    // Dispatch event untuk tab yang sama
+    window.dispatchEvent(new Event("testimoni-updated"))
+    // Set localStorage untuk tab lain
+    localStorage.setItem("testimoniUpdated", Date.now().toString())
+  }
+
   const handleApprove = async (id: string) => {
     await fetch("/api/admin/testimonials", {
       method: "PUT",
@@ -21,6 +28,7 @@ export default function AdminTestimonialsPage() {
       body: JSON.stringify({ id, approved: true }),
     })
     fetchReviews()
+    triggerPublicRefresh()
   }
 
   const handleReject = async (id: string) => {
@@ -31,6 +39,7 @@ export default function AdminTestimonialsPage() {
       body: JSON.stringify({ id, approved: false }),
     })
     fetchReviews()
+    triggerPublicRefresh()
   }
 
   const handleDelete = async (id: string) => {
@@ -41,6 +50,7 @@ export default function AdminTestimonialsPage() {
       body: JSON.stringify({ id }),
     })
     fetchReviews()
+    triggerPublicRefresh()
   }
 
   const pendingReviews = reviews.filter(r => !r.isApproved)
@@ -50,7 +60,6 @@ export default function AdminTestimonialsPage() {
     <div>
       <h2 className="font-heading text-2xl font-bold mb-6">Testimoni</h2>
 
-      {/* Pending */}
       <h3 className="font-semibold mb-3">Menunggu Persetujuan ({pendingReviews.length})</h3>
       {pendingReviews.length === 0 ? (
         <p className="text-gray-500 mb-6">Tidak ada testimoni pending.</p>
@@ -65,6 +74,7 @@ export default function AdminTestimonialsPage() {
                 ))}
               </div>
               <p className="text-sm mt-2">{review.comment}</p>
+              <p className="text-xs text-gray-400">Layanan: {review.serviceName}</p>
               <div className="flex gap-2 mt-4">
                 <button onClick={() => handleApprove(review.id)} className="bg-green-500 text-white px-4 py-1 rounded-full text-sm">Setujui</button>
                 <button onClick={() => handleReject(review.id)} className="bg-yellow-500 text-white px-4 py-1 rounded-full text-sm">Tolak (Hapus)</button>
@@ -75,7 +85,6 @@ export default function AdminTestimonialsPage() {
         </div>
       )}
 
-      {/* Approved */}
       <h3 className="font-semibold mb-3">Disetujui ({approvedReviews.length})</h3>
       {approvedReviews.length === 0 ? (
         <p className="text-gray-500">Belum ada testimoni disetujui.</p>
@@ -90,6 +99,7 @@ export default function AdminTestimonialsPage() {
                 ))}
               </div>
               <p className="text-sm mt-2">{review.comment}</p>
+              <p className="text-xs text-gray-400">Layanan: {review.serviceName}</p>
               <div className="flex gap-2 mt-4">
                 <button onClick={() => handleDelete(review.id)} className="bg-red-500 text-white px-4 py-1 rounded-full text-sm">Hapus</button>
               </div>

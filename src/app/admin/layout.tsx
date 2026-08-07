@@ -1,47 +1,35 @@
-"use client";
-
-import { useEffect } from "react";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import AdminHeader from "@/components/layout/AdminHeader";
+import { authOptions } from "@/lib/auth";
 import { AudioProvider } from "@/context/AudioContext";
+import ForceLogoutPolling from "@/components/admin/ForceLogoutPolling";
+import AdminThemeInit from "@/components/admin/AdminThemeInit";
+import AdminAudioPlayer from "@/components/admin/AdminAudioPlayer";
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const session = await getServerSession(authOptions);
 
-  useEffect(() => {
-    if (status === "loading") return;
-    if (
-      !session ||
-      ((session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN") && session.user.role !== "SUPER_ADMIN")
-    ) {
-      router.push("/login");
-    }
-  }, [session, status, router]);
-
-  if (status === "loading" || !session) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <p>Memuat sesi...</p>
-      </div>
-    );
+  // Hanya ADMIN dan SUPER_ADMIN yang boleh akses
+  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) {
+    redirect("/login");
   }
 
   return (
     <AudioProvider>
-      <div className="flex h-screen bg-gray-100">
+      <AdminThemeInit />
+      <ForceLogoutPolling />
+      <div className="flex h-screen bg-background">
         <AdminSidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
           <AdminHeader />
-          <main className="flex-1 overflow-y-auto p-6">{children}</main>
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 admin-content text-foreground">
+            {children}
+          </main>
         </div>
       </div>
+      <AdminAudioPlayer />
     </AudioProvider>
   );
 }

@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { redirect } from "next/navigation"
@@ -23,15 +23,19 @@ export default function MassOrderPage() {
   if (!session?.user) redirect("/login")
 
   // Fetch services
-  const fetchServices = async () => {
-    const res = await fetch("/api/admin/services")
-    const data = await res.json()
-    setServices(data.platforms?.flatMap((p: any) => p.services) || [])
-  }
-
-  useState(() => {
+  useEffect(() => {
     fetchServices()
   }, [])
+
+  const fetchServices = async () => {
+    try {
+      const res = await fetch("/api/admin/services")
+      const data = await res.json()
+      setServices(data.platforms?.flatMap((p: any) => p.services) || [])
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]

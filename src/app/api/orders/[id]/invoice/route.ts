@@ -2,129 +2,174 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import PDFDocument from "pdfkit"
+import { jsPDF } from "jspdf"
 
-export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const order = await prisma.order.findUnique({
     where: { id: params.id },
     include: {
-      user: { select: { name: true, email: true } },
-      items: {
-        include: {
-          service: {
-            include: { platform: true },
-          },
-        },
-      },
+      user: { select: { name: true, email: true, phone: true } },
+      items: { include: { service: { include: { platform: true } } } },
     },
   })
 
-  if (!order) return NextResponse.json({ error: "Order tidak ditemukan" }, { status: 404 })
-
-  // Hanya user pemilik order atau admin yang bisa mengakses
-  if ((session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN") && order.userId !== session.user.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!order || order.userId !== session.user.id) {
+    return NextResponse.json({ error: "Order tidak ditemukan" }, { status: 404 })
   }
 
-  // Buat PDF
-  const doc = new PDFDocument({ margin: 50 })
-  const buffers: Buffer[] = []
-  doc.on("data", (chunk: Buffer) => buffers.push(chunk))
-  doc.on("end", () => {})
+  const doc = new jsPDF()
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const primaryColor = [0, 82, 212] // #0052D4
 
-  // Header
-  doc.fontSize(20).font("Helvetica-Bold").text("EXHA WAVE", { align: "center" })
-  doc.fontSize(10).font("Helvetica").text("Invoice Transaksi", { align: "center" })
-  doc.moveDown(1)
+  // Header Background Gradient
+  doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2])
+  doc.rect(0, 0, pageWidth, 45, "F")
 
-  // Info User & Order
-  doc.fontSize(10).font("Helvetica-Bold").text("Informasi Pelanggan")
-  doc.font("Helvetica").text(`Nama: ${order.user.name}`)
-  doc.text(`Email: ${order.user.email}`)
-  doc.moveDown(0.5)
+  // Logo & Brand
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(22)
+  doc.setFont("helvetica", "bold")
+  doc.text("EXHA WAVE", 15, 18)
+  doc.setFontSize(9)
+  doc.setFont("helvetica", "normal")
+  doc.text("EXHA WAVE OFFICIAL", 15, 25)
+  doc.text("WA: 0857-9942-8700 | exhagroup@gmail.com", 15, 32)
+  doc.text("Kabupaten Sleman, Yogyakarta, Indonesia", 15, 39)
 
-  doc.font("Helvetica-Bold").text("Detail Order")
-  doc.font("Helvetica").text(`Order ID: #${order.id.slice(-6)}`)
-  doc.text(`Tanggal: ${order.createdAt.toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`)
-  doc.text(`Status: ${order.status}`)
-  doc.text(`Metode Pembayaran: ${order.paymentMethod || "-"}`)
-  doc.moveDown(1)
+  // Invoice Title & Status
+  doc.setFontSize(16)
+  doc.setFont("helvetica", "bold")
+  doc.text("INVOICE", pageWidth - 55, 18)
+  doc.setFontSize(9)
+  doc.setFont("helvetica", "normal")
+  doc.text(`#Exha${order.id.slice(-6).toUpperCase()}`, pageWidth - 55, 25)
+  doc.text(`Tanggal: ${new Date(order.createdAt).toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" })}`, pageWidth - 55, 32)
 
-  // Tabel Layanan
-  doc.font("Helvetica-Bold").text("Rincian Layanan")
-  doc.moveDown(0.3)
+  // Status Badge
+  const statusColors: Record<string, [number, number, number]> = {
+    COMPLETED: [40, 167, 69],
+    PROCESSING: [0, 82, 212],
+    PENDING_PAYMENT: [255, 193, 7],
+    PROGRESS: [111, 66, 193],
+    PARTIAL: [253, 126, 20],
+    CANCELLED: [220, 53, 69],
+  }
+  const statusColor = statusColors[order.status] || [108, 117, 125]
+  doc.setFillColor(statusColor[0], statusColor[1], statusColor[2])
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(8)
+  doc.text(order.status, pageWidth - 55, 39, { baseline: "middle" })
 
-  // Header Tabel
-  const tableTop = doc.y
-  const col1X = 50
-  const col2X = 200
-  const col3X = 300
-  const col4X = 400
-  const col5X = 480
+  // Reset text color
+  doc.setTextColor(0, 0, 0)
 
-  doc.fontSize(9).font("Helvetica-Bold")
-  doc.text("Layanan", col1X, tableTop)
-  doc.text("Platform", col2X, tableTop)
-  doc.text("Jumlah", col3X, tableTop)
-  doc.text("Harga/Unit", col4X, tableTop)
-  doc.text("Subtotal", col5X, tableTop)
+  // Tagihan Kepada
+  doc.setFontSize(12)
+  doc.setFont("helvetica", "bold")
+  doc.text("TAGIHAN KEPADA", 15, 58)
+  doc.setFontSize(10)
+  doc.setFont("helvetica", "normal")
+  doc.text(`${order.user.name}`, 15, 66)
+  doc.text(`Email: ${order.user.email}`, 15, 73)
+  if (order.user.phone) doc.text(`Telp: ${order.user.phone}`, 15, 80)
 
-  doc.moveDown(0.3)
-  doc
-    .moveTo(col1X, doc.y)
-    .lineTo(550, doc.y)
-    .stroke("#cccccc")
-  doc.moveDown(0.3)
+  // Rincian Layanan
+  let y = 92
+  doc.setFontSize(12)
+  doc.setFont("helvetica", "bold")
+  doc.text("RINCIAN LAYANAN", 15, y)
+  y += 8
+  doc.setDrawColor(220, 220, 220)
+  doc.line(15, y, pageWidth - 15, y)
+  y += 6
 
-  // Isi Tabel
-  doc.font("Helvetica")
-  order.items.forEach(item => {
-    const y = doc.y
-    doc.text(item.service.name, col1X, y, { width: 140 })
-    doc.text(item.service.platform.name, col2X, y, { width: 90 })
-    doc.text(item.quantity.toString(), col3X, y, { width: 80 })
-    doc.text(`Rp ${item.service.pricePerUnit.toLocaleString()}`, col4X, y, { width: 70 })
-    doc.text(`Rp ${item.price.toLocaleString()}`, col5X, y)
-    doc.moveDown(0.5)
-  })
+  // Table header
+  doc.setFontSize(9)
+  doc.setFont("helvetica", "bold")
+  doc.text("Layanan", 15, y)
+  doc.text("Target", 80, y)
+  doc.text("Jumlah", 130, y)
+  doc.text("Harga", 160, y)
+  y += 5
 
-  // Garis Total
-  doc.moveDown(0.3)
-  doc.moveTo(col1X, doc.y).lineTo(550, doc.y).stroke("#cccccc")
-  doc.moveDown(0.5)
+  doc.setFont("helvetica", "normal")
+  for (const item of order.items) {
+    if (y > 250) { doc.addPage(); y = 20 }
+    doc.text(`${item.service.platform.name} - ${item.service.name}`, 15, y, { maxWidth: 55 })
+    doc.text(`${item.targetLink}`, 80, y, { maxWidth: 45 })
+    doc.text(`${item.quantity}`, 130, y)
+    doc.text(`Rp ${item.price.toLocaleString("id-ID")}`, 160, y)
+    y += 6
 
-  doc.font("Helvetica-Bold").fontSize(11)
-  doc.text(`Total: Rp ${order.totalPrice.toLocaleString()}`, { align: "right" })
+    // Garansi - HANYA jika service.hasGaransi = true dan order.isGaransi = true
+    if (item.service.hasGaransi && order.isGaransi && order.garansiEnd) {
+      doc.setFontSize(8)
+      doc.setTextColor(40, 167, 69)
+      doc.text(`Garansi hingga ${new Date(order.garansiEnd).toLocaleDateString("id-ID")} | Estimasi 2-5 Jam`, 15, y)
+      doc.setTextColor(0, 0, 0)
+      y += 5
+    }
+
+    // Start & End Count
+    if (item.startCount != null && item.endCount != null) {
+      doc.setFontSize(8)
+      doc.text(`Awal: ${item.startCount} | Akhir: ${item.endCount}`, 15, y)
+      y += 5
+    }
+    y += 2
+  }
+
+  // Rincian Pembayaran
+  y += 5
+  doc.setFontSize(12)
+  doc.setFont("helvetica", "bold")
+  doc.text("RINCIAN PEMBAYARAN", 15, y)
+  y += 8
+  doc.line(15, y, pageWidth - 15, y)
+  y += 6
+
+  doc.setFontSize(10)
+  doc.setFont("helvetica", "normal")
+  doc.text("Subtotal", 15, y)
+  doc.text(`Rp ${order.totalPrice.toLocaleString("id-ID")}`, 160, y, { align: "right" })
+  y += 7
+  doc.text("Diskon", 15, y)
+  doc.text("- Rp 0", 160, y, { align: "right" })
+  y += 7
+  doc.text(`Metode: ${order.paymentMethod || "Manual"}`, 15, y)
+  y += 7
+  doc.text(`Waktu Bayar: ${new Date(order.createdAt).toLocaleString("id-ID")}`, 15, y)
+  y += 10
+
+  // Total
+  doc.setDrawColor(0, 0, 0)
+  doc.line(15, y, pageWidth - 15, y)
+  y += 8
+  doc.setFontSize(14)
+  doc.setFont("helvetica", "bold")
+  doc.text("TOTAL BAYAR", 15, y)
+  doc.text(`Rp ${order.totalPrice.toLocaleString("id-ID")}`, 160, y, { align: "right" })
 
   // Footer
-  doc.moveDown(2)
-  doc.fontSize(8).font("Helvetica").text("Terima kasih telah menggunakan Exha Wave.", { align: "center" })
-  doc.text("Exha Wave - Boost Your Social Presence", { align: "center" })
+  y += 15
+  doc.setFontSize(8)
+  doc.setTextColor(100, 100, 100)
+  doc.text("Catatan: Invoice ini sah dan dibuat otomatis oleh sistem Exha Wave.", 15, y)
+  y += 5
+  doc.text("Untuk komplain/refill garansi hubungi CS pada Live Chat.", 15, y)
+  y += 5
+  doc.text("Alamat: Kabupaten Sleman, Yogyakarta, Indonesia | exhagroup@gmail.com | 0857-9942-8700", 15, y)
 
-  doc.end()
-
-  const pdfBuffer = await new Promise<Buffer>((resolve) => {
-    const chunks: Buffer[] = []
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk))
-    doc.on("end", () => resolve(Buffer.concat(chunks)))
-  })
-
-  return new NextResponse(pdfBuffer, {
+  // Generate PDF
+  const pdfBuffer = Buffer.from(doc.output("arraybuffer"))
+  return new NextResponse(new Uint8Array(pdfBuffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="invoice-${order.id.slice(-6)}.pdf"`,
+      "Content-Disposition": `inline; filename="Invoice-Exha${order.id.slice(-6).toUpperCase()}.pdf"`,
     },
   })
 }

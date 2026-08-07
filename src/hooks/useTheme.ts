@@ -8,7 +8,15 @@ export function useTheme() {
 
   useEffect(() => {
     const saved = localStorage.getItem("theme") as Theme | null
-    if (saved) setThemeState(saved)
+    if (saved) {
+      setThemeState(saved)
+    } else {
+      // Tentukan tema otomatis berdasarkan jam
+      const hour = new Date().getHours()
+      const autoTheme: Theme = (hour >= 18 || hour < 6) ? "dark" : "light"
+      setThemeState(autoTheme)
+      localStorage.setItem("theme", autoTheme)
+    }
   }, [])
 
   useEffect(() => {
