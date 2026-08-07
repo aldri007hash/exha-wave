@@ -11,6 +11,13 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({
       url: process.env.DATABASE_URL,
     },
   },
+  // Connection pool untuk serverless database
+  connection: {
+    pool: {
+      idle_timeout: 10,
+      max_lifetime: 30,
+    },
+  },
 })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
