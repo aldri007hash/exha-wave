@@ -11,6 +11,7 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
   const ip = getClientIP(req)
 
+  // Rate limiting untuk endpoint sensitif
   if (pathname === "/api/auth/signin") {
     const result = await rateLimit(`login:${ip}`, "login")
     if (!result.success) return NextResponse.json({ error: "Terlalu banyak percobaan login." }, { status: 429 })
@@ -26,6 +27,20 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith("/api/chat/user")) {
     const result = await rateLimit(`chat:${ip}`, "chat")
     if (!result.success) return NextResponse.json({ error: "Anda mengirim terlalu cepat." }, { status: 429 })
+  }
+
+  // ========== RATE LIMITING BARU ==========
+  if (pathname.startsWith("/api/refund")) {
+    const result = await rateLimit(`refund:${ip}`, "refund")
+    if (!result.success) return NextResponse.json({ error: "Terlalu banyak permintaan refund. Coba lagi nanti." }, { status: 429 })
+  }
+  if (pathname.startsWith("/api/topup")) {
+    const result = await rateLimit(`topup:${ip}`, "topup")
+    if (!result.success) return NextResponse.json({ error: "Terlalu banyak permintaan topup. Coba lagi nanti." }, { status: 429 })
+  }
+  if (pathname.startsWith("/api/orders")) {
+    const result = await rateLimit(`orders:${ip}`, "orders")
+    if (!result.success) return NextResponse.json({ error: "Terlalu banyak permintaan. Coba lagi nanti." }, { status: 429 })
   }
 
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
@@ -44,7 +59,7 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // Proteksi API talent: TALENT, ADMIN, SUPER_ADMIN (agar admin bisa akses group chat)
+  // Proteksi API talent: TALENT, ADMIN, SUPER_ADMIN
   if (pathname.startsWith("/api/talent")) {
     if (!token || (token.role !== "TALENT" && token.role !== "ADMIN" && token.role !== "SUPER_ADMIN")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })

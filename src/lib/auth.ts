@@ -22,13 +22,19 @@ export const authOptions: NextAuthOptions = {
         if (!user || !user.password) return null
         const isValid = await bcrypt.compare(credentials.password, user.password)
         if (!isValid) return null
+
+        // Hanya ADMIN dan SUPER_ADMIN yang boleh login lewat credentials
+        if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+          return null
+        }
+
         return { id: user.id, email: user.email, name: user.name, role: user.role, image: user.image }
       },
     }),
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge: 7 * 24 * 60 * 60, // 7 hari (sebelumnya 30 hari)
   },
   callbacks: {
     async signIn({ user, account }) {

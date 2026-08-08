@@ -2,50 +2,28 @@ import { Ratelimit } from "@upstash/ratelimit"
 import { Redis } from "@upstash/redis"
 
 const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  url: process.env.UPSTASH_REDIS_URL!,
+  token: process.env.UPSTASH_REDIS_TOKEN!,
 })
 
-// Buat rate limiter: 5 permintaan per 15 menit
-const loginLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(5, "15 m"),
-  analytics: true,
-})
+const limiters: Record<string, Ratelimit> = {
+  login: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(5, "15 m"), analytics: true, prefix: "ratelimit:login" }),
+  forgot: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(3, "1 h"), analytics: true, prefix: "ratelimit:forgot" }),
+  reseller: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "1 m"), analytics: true, prefix: "ratelimit:reseller" }),
+  chat: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, "1 m"), analytics: true, prefix: "ratelimit:chat" }),
+  refund: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(5, "15 m"), analytics: true, prefix: "ratelimit:refund" }),
+  topup: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(5, "15 m"), analytics: true, prefix: "ratelimit:topup" }),
+  orders: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, "1 m"), analytics: true, prefix: "ratelimit:orders" }),
+}
 
-// Buat rate limiter: 3 permintaan per jam
-const forgotLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(3, "1 h"),
-  analytics: true,
-})
-
-// Buat rate limiter: 30 permintaan per menit
-const resellerLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(30, "1 m"),
-  analytics: true,
-})
-
-// Buat rate limiter: 20 permintaan per menit
-const chatLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(20, "1 m"),
-  analytics: true,
-})
-
-export async function rateLimit(
-  identifier: string,
-  type: "login" | "forgot" | "reseller" | "chat"
-): Promise<{ success: boolean; remaining: number }> {
-  let limiter: Ratelimit
-  switch (type) {
-    case "login": limiter = loginLimiter; break
-    case "forgot": limiter = forgotLimiter; break
-    case "reseller": limiter = resellerLimiter; break
-    case "chat": limiter = chatLimiter; break
-    default: limiter = loginLimiter
+export async function rateLimit(identifier: string, type: string): Promise<{ success: boolean; remaining: number }> {
+  const limiter = limiters[type]
+  if (!limiter) return { success: true, remaining: 999 }
+  try {
+    const { success, remaining } = await limiter.limit(identifier)
+    return { success, remaining }
+  } catch (error) {
+    console.error(`Rate limit error (${type}):`, error)
+    return { success: true, remaining: 999 }
   }
-  const result = await limiter.limit(identifier)
-  return { success: result.success, remaining: result.remaining }
 }
