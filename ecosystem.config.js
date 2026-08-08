@@ -3,6 +3,8 @@ module.exports = {
     name: "exha-wave",
     script: "node_modules/.bin/next",
     args: "start",
+    instances: "max",
+    exec_mode: "cluster",
     max_memory_restart: "500M",
     max_restarts: 10,
     restart_delay: 5000,
