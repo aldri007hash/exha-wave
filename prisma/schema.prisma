@@ -26,6 +26,7 @@ model User {
   lastProfileEdit     DateTime?
   passwordChangedAt   DateTime?
   forceLogoutAt       DateTime?
+  deletedAt         DateTime?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   referralCode        String?              @unique
@@ -102,6 +103,7 @@ model Order {
   updatedAt       DateTime    @updatedAt
   dripFeedBatches Json?
   dripFeedRequest Boolean     @default(false)
+  deletedAt         DateTime?
   user            User        @relation(fields: [userId], references: [id])
   items           OrderItem[]
   review          Review?
@@ -439,6 +441,7 @@ model Job {
   revisionNote  String?
   submittedAt   DateTime?
   completedAt   DateTime?
+  deletedAt         DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -491,3 +494,9 @@ model TalentPaymentMethod {
 
   user          User     @relation(fields: [userId], references: [id])
 }
+
+// ========== INDEX UNTUK PERFORMA QUERY ==========
+// @@index di model Order (tambahkan di bawah field terakhir model Order)
+// @@index di model Job
+// @@index di model JobClaim
+// @@index di model ActivityLog
